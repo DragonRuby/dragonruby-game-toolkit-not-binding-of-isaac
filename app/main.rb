@@ -7,6 +7,26 @@ class XYPair
     @x = x
     @y = y
   end
+
+  def +(o)
+    XYPair.new(@x + o.x, @y + o.y)
+  end
+
+  def -(o)
+    XYPair.new(@x - o.x, @y - o.y)
+  end
+
+  def *(scalar)
+    XYPair.new(@x * scalar, @y * scalar)
+  end
+
+  def /(scalar)
+    XYPair.new(@x / scalar, @y / scalar)
+  end
+
+  def len
+    Math.sqrt(@y ** 2 + @x ** 2)
+  end
 end
 
 class Sprite
@@ -15,12 +35,12 @@ class Sprite
 end
 
 class Bullet
-  attr_accessor :sprite, :x, :y, :vel_x, :vel_y
-  # @param [Integer, Float] x
-  # @param [Integer, Float] y
-  # @param [Integer, Float] vel_x
-  # @param [Integer, Float] vel_y
-  def initialize(x, y, vel_x, vel_y)
+  attr_accessor :sprite, :pos, :vel
+
+  # @param [XYPair] pos
+  # @param [XYPair] vel
+  def initialize(pos, vel)
+    trace! if TRACING_ENABLED
     @sprite = Sprite.new
     @sprite.path = BULLET_SPRITE_PATH
     @sprite.w = BULLET_SPRITE_SIZE
@@ -28,76 +48,73 @@ class Bullet
     @sprite.r = 0
     @sprite.g = 0
     @sprite.b = 0
-    @x = x
-    @y = y
-    @vel_x = vel_x
-    @vel_y = vel_y
+    @pos = pos
+    @vel = vel
   end
 
   def sprite
-    @sprite.x = @x - (@sprite.w / 2)
-    @sprite.y = @y - (@sprite.h / 2)
+    @sprite.x = offset.x
+    @sprite.y = offset.y
     @sprite
   end
 
   def tick
-    @x += @vel_x
-    @y += @vel_y
+    @pos += @vel
   end
 
-  def center
-    [@x - (@sprite.w / 2), @y - (@sprite.h / 2)]
+  def offset
+    @pos - XYPair.new(@sprite.w, @sprite.h) * 0.5
   end
 end
 
 class Player
-  attr_accessor :sprite, :x, :y, :fire_cooldown
-  # @param [Integer, Float] x
-  # @param [Integer, Float] y
-  def initialize(x, y)
+  attr_accessor :sprite, :pos, :fire_cooldown
+  # @param [XYPair] pos
+  def initialize(pos)
+    trace! if TRACING_ENABLED
     @sprite = Sprite.new
     @sprite.path = PLAYER_SPRITE_PATH
     @sprite.w = PLAYER_SPRITE_SIZE
     @sprite.h = PLAYER_SPRITE_SIZE
-    @x = x
-    @y = y
-    @x_vel = 0
-    @y_vel = 0
+    @pos = pos
+    @vel = XYPair.new(0, 0)
     @fire_cooldown = 0
   end
 
   def sprite
-    @sprite.x = @x - (@sprite.w / 2)
-    @sprite.y = @y - (@sprite.h / 2)
+    @sprite.x = offset.x
+    @sprite.y = offset.y
     @sprite
   end
 
-  def center
-    [@x + (@sprite.w / 2), @y + (@sprite.h / 2)]
+  def offset
+    @pos - XYPair.new(@sprite.w, @sprite.h) * 0.5
   end
 
   def shoot(direction)
-    return nil if (@fire_cooldown -= 1) > 0
+    return nil if (@fire_cooldown -= 1) > 0 || direction == :none
     @fire_cooldown = BULLET_COOLDOWN
-    return Bullet.new(x, y, BULLET_SPEED, 0) if direction == :right
-    return Bullet.new(x, y, -BULLET_SPEED, 0) if direction == :left
-    return Bullet.new(x, y, 0, BULLET_SPEED) if direction == :up
-    return Bullet.new(x, y, 0, -BULLET_SPEED) if direction == :down
+    b_vel = nil
+    b_vel = XYPair.new(BULLET_SPEED, 0) if direction == :right
+    b_vel = XYPair.new(-BULLET_SPEED, 0) if direction == :left
+    b_vel = XYPair.new(0, BULLET_SPEED) if direction == :up
+    b_vel = XYPair.new(0, -BULLET_SPEED) if direction == :down
+    if b_vel
+      return Bullet.new(@pos, b_vel + @vel * BULLET_MOMENTUM)
+    end
   end
 
   # @param [XYPair] direction
   def move(direction)
-    @x_vel = (@x_vel + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :right
-    @x_vel = (@x_vel - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :left
-    @y_vel = (@y_vel + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.y == :up
-    @y_vel = (@y_vel - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.y == :down
-    diagonal_comp = PLAYER_SPEED_LIMIT / Math.sqrt(@y_vel ** 2 + @x_vel ** 2)
-    @x_vel *= diagonal_comp if diagonal_comp < 1.0
-    @y_vel *= diagonal_comp if diagonal_comp < 1.0
-    @x_vel *= PLAYER_FRICT if direction.x == :none
-    @y_vel *= PLAYER_FRICT if direction.y == :none
-    @x += @x_vel
-    @y += @y_vel
+    @vel.x = (@vel.x + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :right
+    @vel.x = (@vel.x - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :left
+    @vel.y = (@vel.y + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.y == :up
+    @vel.y = (@vel.y - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.y == :down
+    diagonal_comp = PLAYER_SPEED_LIMIT / @vel.len
+    @vel *= diagonal_comp if diagonal_comp < 1.0
+    @vel.x *= PLAYER_FRICT if direction.x == :none
+    @vel.y *= PLAYER_FRICT if direction.y == :none
+    @pos += @vel
   end
 end
 
@@ -105,7 +122,8 @@ class Game
   attr_accessor :player, :bullets
 
   def initialize
-    @player = Player.new(640, 360)
+    trace! if TRACING_ENABLED
+    @player = Player.new XYPair.new(640, 360)
     @bullets = []
   end
 
@@ -139,11 +157,12 @@ class Game
   # @param [AttrGTK] args
   def tick(args)
     player.move get_move_dir args.inputs.keyboard.key_held
-    b = player.shoot get_shoot_dir args.inputs.keyboard.key_held
-    bullets << b if b
-    bullets.each { |bu| bu.tick }
+    bullet = player.shoot get_shoot_dir args.inputs.keyboard.key_held
+    @bullets << bullet if bullet
+    # Todo: Find a more efficient method.
+    @bullets = @bullets.each { |b| b.tick }
+                   .find_all { |b| b.pos.x.between?(0 - DSPWN_RNG, 1280 + DSPWN_RNG) && b.pos.y.between?(0 - DSPWN_RNG, 720 + DSPWN_RNG) } # Check if bullet is on-screen
   end
-
 end
 
 $game = Game.new
