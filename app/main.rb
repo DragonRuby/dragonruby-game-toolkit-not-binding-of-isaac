@@ -1,33 +1,55 @@
 require 'app/constants.rb'
 
-class XYPair
-  attr_accessor :x, :y
+class XYVector
+  #@type [Float]
+  attr_accessor :x
+  #@type [Float]
+  attr_accessor :y
 
-  def initialize(x = nil, y = nil)
-    @x = x
-    @y = y
+  # @param [Float] x
+  # @param [Float] y
+  def initialize(x = 0.0, y = 0.0)
+    #@type [Float]
+    @x = x.to_f
+    #@type [Float]
+    @y = y.to_f
   end
 
-  def +(o)
-    XYPair.new(@x + o.x, @y + o.y)
+  # @param [XYVector] lhs
+  def +(lhs)
+    XYVector.new(@x + lhs.x, @y + lhs.y)
   end
 
-  def -(o)
-    XYPair.new(@x - o.x, @y - o.y)
+  # @param [XYVector] lhs
+  def -(lhs)
+    XYVector.new(@x - lhs.x, @y - lhs.y)
   end
 
-  def *(scalar)
-    XYPair.new(@x * scalar, @y * scalar)
+  # @param [Float, XYVector] lhs
+  # @return [XYVector, Float] Returns scaled vector if lhs is a scalar, and dot product if lhs is a vector.
+  def *(lhs)
+    return (@x * lhs.x + @y * lhs.y) if lhs.is_a? XYVector # Dot product
+    XYVector.new(@x * scalar, @y * scalar) # Scalar multiplication
   end
 
+  # @param [Numeric] scalar
   def /(scalar)
-    XYPair.new(@x / scalar, @y / scalar)
+    XYVector.new(@x / scalar, @y / scalar)
   end
 
+  # Takes the dot product of two vectors
+  # @param [XYVector] vector
+  # @return [Float]
+  def dot(vector)
+    @x * vector.x + @y * vector.y
+  end
+
+  # @return [Float]
   def len
     Math.sqrt(@y ** 2 + @x ** 2)
   end
 end
+
 
 class Sprite
   #noinspection RubyResolve
@@ -37,8 +59,9 @@ end
 class Bullet
   attr_accessor :sprite, :pos, :vel
 
-  # @param [XYPair] pos
-  # @param [XYPair] vel
+  # @param [XYVector] pos
+  # @param [XYVector] vel
+  #noinspection RubyResolve
   def initialize(pos, vel)
     trace! if TRACING_ENABLED
     @sprite = Sprite.new
@@ -63,21 +86,24 @@ class Bullet
   end
 
   def offset
-    @pos - XYPair.new(@sprite.w, @sprite.h) * 0.5
+    #noinspection RubyResolve
+    @pos - XYVector.new(@sprite.w, @sprite.h) * 0.5
   end
 end
 
 class Player
   attr_accessor :sprite, :pos, :fire_cooldown
-  # @param [XYPair] pos
+  #noinspection RubyResolve
+  # @param [XYVector] pos
   def initialize(pos)
     trace! if TRACING_ENABLED
     @sprite = Sprite.new
     @sprite.path = PLAYER_SPRITE_PATH
     @sprite.w = PLAYER_SPRITE_SIZE
     @sprite.h = PLAYER_SPRITE_SIZE
+    #@type [XYVector]
     @pos = pos
-    @vel = XYPair.new(0, 0)
+    @vel = XYVector.new
     @fire_cooldown = 0
   end
 
@@ -87,24 +113,25 @@ class Player
     @sprite
   end
 
+  #noinspection RubyResolve
   def offset
-    @pos - XYPair.new(@sprite.w, @sprite.h) * 0.5
+    @pos - XYVector.new(@sprite.w, @sprite.h) * 0.5
   end
 
   def shoot(direction)
     return nil if (@fire_cooldown -= 1) > 0 || direction == :none
     @fire_cooldown = BULLET_COOLDOWN
     b_vel = nil
-    b_vel = XYPair.new(BULLET_SPEED, 0) if direction == :right
-    b_vel = XYPair.new(-BULLET_SPEED, 0) if direction == :left
-    b_vel = XYPair.new(0, BULLET_SPEED) if direction == :up
-    b_vel = XYPair.new(0, -BULLET_SPEED) if direction == :down
+    b_vel = XYVector.new(BULLET_SPEED, 0.0) if direction == :right
+    b_vel = XYVector.new(-BULLET_SPEED, 0.0) if direction == :left
+    b_vel = XYVector.new(0.0, BULLET_SPEED) if direction == :up
+    b_vel = XYVector.new(0.0, -BULLET_SPEED) if direction == :down
     if b_vel
-      return Bullet.new(@pos, b_vel + @vel * BULLET_MOMENTUM)
+      Bullet.new(@pos, b_vel + @vel * BULLET_MOMENTUM)
     end
   end
 
-  # @param [XYPair] direction
+  # @param [XYVector] direction
   def move(direction)
     @vel.x = (@vel.x + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :right
     @vel.x = (@vel.x - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :left
@@ -120,15 +147,18 @@ end
 
 class Game
   attr_accessor :player, :bullets
-
+  #noinspection RubyResolve
   def initialize
     trace! if TRACING_ENABLED
-    @player = Player.new XYPair.new(640, 360)
+
+    @player = Player.new XYVector.new(640.0, 360.0)
+
     @bullets = []
   end
 
-  def get_move_dir(keyboard)
-    dir = XYPair.new
+  #noinspection RubyResolve
+  def get_move_dir(keyboard) # TODO: Don't use XYVector to represent anything that isn't an ACTUAL VECTOR!!!
+    dir = XYVector.new
     dir.x = if keyboard.a == keyboard.d
               :none
             else
@@ -155,18 +185,19 @@ class Game
   end
 
   # @param [AttrGTK] args
+  #noinspection RubyResolve
   def tick(args)
     player.move get_move_dir args.inputs.keyboard.key_held
     bullet = player.shoot get_shoot_dir args.inputs.keyboard.key_held
     @bullets << bullet if bullet
     # Todo: Find a more efficient method.
     @bullets = @bullets.each { |b| b.tick }
-                   .find_all { |b| b.pos.x.between?(0 - DSPWN_RNG, 1280 + DSPWN_RNG) && b.pos.y.between?(0 - DSPWN_RNG, 720 + DSPWN_RNG) } # Check if bullet is on-screen
+                   .find_all { |b| b.pos.x.between?(0 - BULLET_DESPAWN_RANGE, 1280 + BULLET_DESPAWN_RANGE) && b.pos.y.between?(0 - BULLET_DESPAWN_RANGE, 720 + BULLET_DESPAWN_RANGE) } # Check if bullet is on-screen
   end
 end
 
 $game = Game.new
-
+#noinspection RubyResolve
 def tick(args)
   $game.tick args
   args.outputs.background_color = [128, 128, 128]
