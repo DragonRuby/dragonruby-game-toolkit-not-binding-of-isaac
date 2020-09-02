@@ -68,9 +68,6 @@ class Bullet
     @sprite.path = BULLET_SPRITE_PATH
     @sprite.w = BULLET_SPRITE_SIZE
     @sprite.h = BULLET_SPRITE_SIZE
-    @sprite.r = 0
-    @sprite.g = 0
-    @sprite.b = 0
     @pos = pos
     @vel = vel
   end
@@ -92,33 +89,76 @@ class Bullet
 end
 
 class Player
-  attr_accessor :sprite, :pos, :fire_cooldown
+  attr_accessor :sprites, :pos, :fire_cooldown
   #noinspection RubyResolve
   # @param [XYVector] pos
   def initialize(pos)
     trace! if TRACING_ENABLED
-    @sprite = Sprite.new
-    @sprite.path = PLAYER_SPRITE_PATH
-    @sprite.w = PLAYER_SPRITE_SIZE
-    @sprite.h = PLAYER_SPRITE_SIZE
+    #player uses three layers of sprites: head_sprite, body_sprite, face_sprite
+    @head_sprite = Sprite.new
+    @head_sprite.path = PLAYER_HEAD_DOWN_SPRITE_PATH
+    @head_sprite.w = PLAYER_SPRITE_W
+    @head_sprite.h = PLAYER_SPRITE_H
+
+    @body_sprite = Sprite.new
+    @body_sprite.path = PLAYER_BODY_X_SPRITE_PATH
+    @body_sprite.w = PLAYER_SPRITE_W
+    @body_sprite.h = PLAYER_SPRITE_H
+    #Since body_sprite will need to be animated at some point I am leaving these here
+    #@body_sprite.tile_x = 0
+    #@body_sprite.tile_y = 0
+    #@body_sprite.tile_w = PLAYER_SPRITE_W
+    #@body_sprite.tile_h = PLAYER_SPRITE_H
+
+    @face_sprite = Sprite.new
+    @face_sprite.path = PLAYER_FACE_DOWN_SPRITE_PATH
+    @face_sprite.w = PLAYER_SPRITE_W
+    @face_sprite.h = PLAYER_SPRITE_H
+
     #@type [XYVector]
     @pos = pos
     @vel = XYVector.new
     @fire_cooldown = 0
   end
 
-  def sprite
-    @sprite.x = offset.x
-    @sprite.y = offset.y
-    @sprite
+  #Sprite functions. can all these be put together somehow?
+  def head_sprite
+    @head_sprite.x = offset.x
+    @head_sprite.y = offset.y
+    @head_sprite
+  end
+
+  def body_sprite
+    @body_sprite.x = offset.x
+    @body_sprite.y = offset.y
+    @body_sprite
+  end
+
+  def face_sprite
+    @face_sprite.x = offset.x
+    @face_sprite.y = offset.y
+    @face_sprite
   end
 
   #noinspection RubyResolve
   def offset
-    @pos - XYVector.new(@sprite.w, @sprite.h) * 0.5
+    @pos - XYVector.new(@head_sprite.w, @head_sprite.h) * 0.5
   end
 
   def shoot(direction)
+    #look in that direction
+    @head_sprite.path = PLAYER_HEAD_RIGHT_SPRITE_PATH if direction == :right
+    @head_sprite.path = PLAYER_HEAD_LEFT_SPRITE_PATH if direction == :left
+    @head_sprite.path = PLAYER_HEAD_UP_SPRITE_PATH if direction == :up
+    @head_sprite.path = PLAYER_HEAD_DOWN_SPRITE_PATH if direction == :down
+
+    #items will modify these beyond direction. will need their own function
+    @face_sprite.path = PLAYER_FACE_RIGHT_SPRITE_PATH if direction == :right
+    @face_sprite.path = PLAYER_FACE_LEFT_SPRITE_PATH if direction == :left
+    @face_sprite.path = PLAYER_FACE_UP_SPRITE_PATH if direction == :up
+    @face_sprite.path = PLAYER_FACE_DOWN_SPRITE_PATH if direction == :down
+
+    #fire the bullet
     return nil if (@fire_cooldown -= 1) > 0 || direction == :none
     @fire_cooldown = BULLET_COOLDOWN
     b_vel = nil
@@ -142,6 +182,14 @@ class Player
     @vel.x *= PLAYER_FRICT if direction.x == :none
     @vel.y *= PLAYER_FRICT if direction.y == :none
     @pos += @vel
+
+
+    #turn the body the way we wish to move
+    @body_sprite.path = PLAYER_BODY_Y_SPRITE_PATH if direction.y == :up
+    @body_sprite.path = PLAYER_BODY_Y_SPRITE_PATH if direction.y == :down
+    @body_sprite.path = PLAYER_BODY_RIGHT_SPRITE_PATH if direction.x == :right
+    @body_sprite.path = PLAYER_BODY_LEFT_SPRITE_PATH if direction.x == :left
+
   end
 end
 
@@ -201,7 +249,9 @@ $game = Game.new
 def tick(args)
   $game.tick args
   args.outputs.background_color = [128, 128, 128]
+  args.outputs.sprites << $game.player.body_sprite #Todo: static sprites?
+  args.outputs.sprites << $game.player.head_sprite #Todo: static sprites?
+  args.outputs.sprites << $game.player.face_sprite #Todo: static sprites?
   args.outputs.sprites << $game.bullets.map { |b| b.sprite } # Todo: static sprites?
-  args.outputs.sprites << $game.player.sprite #Todo: static sprites?
   args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
 end
