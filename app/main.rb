@@ -126,6 +126,7 @@ class Player
     @pos = pos
     @vel = XYVector.new
     @fire_cooldown = 0
+    @bullet_count = 0
 
     trace! if TRACING_ENABLED
     #player uses three layers of sprites: head_sprite, body_sprite, face_sprite
@@ -180,6 +181,10 @@ class Player
     #items will modify these beyond direction. will need their own function
     turn(:face, direction) if direction != :none
 
+    #reset the bullet count, always start from the same eye
+    @bullet_count = 0 if direction == :none
+
+    
     #fire the bullet
     return nil if (@fire_cooldown -= 1) > 0 || direction == :none
     @fire_cooldown = BULLET_COOLDOWN
@@ -196,9 +201,25 @@ class Player
       perpendicular_vel = a - parallel_vel
       momentum_vector = (perpendicular_vel + (cos_theta > 0 ? parallel_vel : XYVector.new)) * BULLET_MOMENTUM
       bullet_true_vel = momentum_vector + bullet_initial_vel
+
+      #calculates where the bullet should appear
+      eyePosition = XYVector.new
+      if direction == :down
+        eyePosition = @bullet_count%2 == 0 ? XYVector.new(12, -4) : XYVector.new(-12, -4)
+      elsif direction == :left
+        eyePosition = @bullet_count%2 == 0 ? XYVector.new(-16, -8) : XYVector.new(-16, 8)
+      elsif direction == :right
+        eyePosition = @bullet_count%2 == 0 ? XYVector.new(16, 8) : XYVector.new(16, -8)
+      elsif direction == :up
+        eyePosition = @bullet_count%2 == 0 ? XYVector.new(12, 16) : XYVector.new(-12, 16)
+      end
+
+      #saves the bullet count to know which eye to appear on
+      @bullet_count += 1
+      
       # I don't know why, I don't want to know why, I shouldn't have to wonder why, but for whatever reason,
       # RubyMine thinks both of these are Floats on this line and this line only unless we do this terribleness.
-      Bullet.new(XYVector.new+@pos, XYVector.new+bullet_true_vel)
+      Bullet.new(eyePosition+@pos, XYVector.new+bullet_true_vel)
     end
   end
 
