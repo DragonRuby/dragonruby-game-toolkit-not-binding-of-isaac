@@ -92,7 +92,8 @@ class Bullet
     @sprite.path = BULLET_SPRITE_PATH
     @pos = pos
     @vel = vel
-    @sprite.angle = (vel.theta * 180 / (45*Math::PI)).round * 45 # Point the Bullet in the direction of motion, snapped to the nearest 45 degrees
+    # Point the Bullet in the direction of motion, snapped to the nearest BULLET_VISUAL_ANGLE_SNAP degrees
+    @sprite.angle = (vel.theta * 180 / (BULLET_VISUAL_ANGLE_SNAP*Math::PI)).round * BULLET_VISUAL_ANGLE_SNAP
     @sprite.angle_anchor_x = 0.5
     @sprite.angle_anchor_y = 0.5
   end
