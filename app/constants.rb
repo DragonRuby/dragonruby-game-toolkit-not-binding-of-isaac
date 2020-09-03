@@ -3,14 +3,14 @@ PLAYER_SPRITE_W = 64
 PLAYER_SPRITE_H = 128
 PLAYER_SPEED_LIMIT = 5.0
 PLAYER_ACCEL = 0.5
-PLAYER_FRICT = 0.9
+PLAYER_FRICTION = 0.9
 BULLET_SPRITE_PATH = 'sprites/bullet.png'
 BULLET_SPRITE_SIZE = 32
 BULLET_SPEED = 8.0
 BULLET_COOLDOWN = 12
 BULLET_MOMENTUM = 1.0   # shooter_vel * BULLET_MOMENTUM + base_bullet_vel = bullet_vel (kinda)
 BULLET_DESPAWN_RANGE = 50
-TRACING_ENABLED = true
+TRACING_ENABLED = false
 
 PLAYER_SPRITES = {
     body: {
@@ -23,7 +23,7 @@ PLAYER_SPRITES = {
         down: 'sprites/player_face_down.png',
         up: 'sprites/player_face_up.png',
         left: 'sprites/player_face_left.png',
-        riodyght: 'sprites/player_face_right.png'
+        right: 'sprites/player_face_right.png'
     },
     head: {
         down: 'sprites/player_head_down.png',

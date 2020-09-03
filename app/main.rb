@@ -1,8 +1,6 @@
 require 'app/constants.rb'
+require 'app/ruby_mine_appeaser.rb'
 
-unless respond_to?(:trace!)
-  def trace!; end
-end
 
 class XYVector
   #@type [Float]
@@ -46,18 +44,40 @@ class XYVector
     Math.sqrt(@y ** 2 + @x ** 2)
   end
 
-  def serialize; { x: x, y: y }; end
-  def inspect; serialize.to_s end
-  def to_s; serialize.to_s; end
+  def theta
+    Math.atan2(@y, @x)
+  end
+
+  # @param [Float] theta_prime
+  def theta=(theta_prime)
+    @x, @y = *(XYVector.new(*theta_prime.vector) * self.len).serialize.values
+  end
+
+  def serialize
+    {x: x, y: y};
+  end
+
+  def inspect
+    serialize.to_s
+  end
+
+  def to_s
+    serialize.to_s;
+  end
 end
 
 
 class Sprite
-  
   attr_sprite
+  # @param [Integer] w width2
+  # @param [Integer] h height
   def initialize(w, h)
     @w = w
     @h = h
+  end
+
+  def path=(new_path)
+    @path = new_path if @path != new_path
   end
 end
 
@@ -72,6 +92,9 @@ class Bullet
     @sprite.path = BULLET_SPRITE_PATH
     @pos = pos
     @vel = vel
+    @sprite.angle = (vel.theta * 180 / (45*Math::PI)).round * 45 # Point the Bullet in the direction of motion, snapped to the nearest 45 degrees
+    @sprite.angle_anchor_x = 0.5
+    @sprite.angle_anchor_y = 0.5
   end
 
   def sprite
@@ -85,7 +108,8 @@ class Bullet
   end
 
   def offset
-    
+
+    #noinspection
     @pos - XYVector.new(@sprite.w, @sprite.h) * 0.5
   end
 end
@@ -95,7 +119,7 @@ class Player
   #@type [XYVector]
   attr_accessor :pos
 
-  
+
   # @param [XYVector] pos
   def initialize(pos)
     #@type [XYVector]
@@ -106,13 +130,13 @@ class Player
     trace! if TRACING_ENABLED
     #player uses three layers of sprites: head_sprite, body_sprite, face_sprite
     @sprites = {
-        body: Sprite.new(PLAYER_SPRITE_W,PLAYER_SPRITE_H),
-        head: Sprite.new(PLAYER_SPRITE_W,PLAYER_SPRITE_H),
-        face: Sprite.new(PLAYER_SPRITE_W,PLAYER_SPRITE_H),
+        body: Sprite.new(PLAYER_SPRITE_W, PLAYER_SPRITE_H),
+        head: Sprite.new(PLAYER_SPRITE_W, PLAYER_SPRITE_H),
+        face: Sprite.new(PLAYER_SPRITE_W, PLAYER_SPRITE_H)
     }
-    turn( :body, :down)
-    turn( :head, :down)
-    turn( :face, :down)
+    turn(:body, :down)
+    turn(:head, :down)
+    turn(:face, :down)
 
     #Since body_sprite will need to be animated at some point I am leaving these here
     #@sprites[:body].tile_x = 0
@@ -122,22 +146,34 @@ class Player
     #
   end
 
+  # @param [Symbol] part The body part to turn
+  # @param [Symbol] direction The direction to turn the body part towards
   def turn(part, direction)
+    unless PLAYER_SPRITES.has_key?(part) && PLAYER_SPRITES[part].has_key?(direction)
+      puts part.to_s
+      puts direction.to_s
+    end
     @sprites[part].path = PLAYER_SPRITES[part][direction]
+    nil # Don't return anything
   end
 
-  #Sprite functions. can all these be put together somehow?
-  def offset_sprite part
+  # @param [Symbol] part Body part to get the sprite for
+  def offset_sprite(part)
     @sprites[part].x = offset.x
     @sprites[part].y = offset.y
     @sprites[part]
   end
 
-  
+  def offset_sprites
+    @sprites.keys.map { |s| offset_sprite s}
+  end
+
+
   def offset
     @pos - XYVector.new(PLAYER_SPRITE_W.to_f, PLAYER_SPRITE_H.to_f) * 0.5
   end
 
+  # @param [Symbol] direction
   def shoot(direction)
 
     turn(:head, direction) if direction != :none
@@ -153,30 +189,39 @@ class Player
     b_vel = XYVector.new(0.0, BULLET_SPEED) if direction == :up
     b_vel = XYVector.new(0.0, -BULLET_SPEED) if direction == :down
     if b_vel
-      Bullet.new(@pos, b_vel + @vel * BULLET_MOMENTUM)
+      # I don't know why, I don't want to know why, I shouldn't have to wonder why, but for whatever reason,
+      # RubyMine thinks @pos is a Float on this line and this line only unless we do this terribleness.
+      Bullet.new(XYVector.new+@pos, (b_vel + @vel * BULLET_MOMENTUM))
     end
   end
 
-  # @param [XYVector] direction
-  def move(direction)
-    @vel.x = (@vel.x + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :right
-    @vel.x = (@vel.x - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.x == :left
-    @vel.y = (@vel.y + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.y == :up
-    @vel.y = (@vel.y - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if direction.y == :down
+  # @param [Array<Symbol>] directions
+  def move(directions)
+    @vel.x = (@vel.x + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :right
+    @vel.x = (@vel.x - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :left
+    @vel.y = (@vel.y + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :up
+    @vel.y = (@vel.y - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :down
     diagonal_comp = PLAYER_SPEED_LIMIT / @vel.len
     @vel *= diagonal_comp if diagonal_comp < 1.0
-    @vel.x *= PLAYER_FRICT if direction.x == :none
-    @vel.y *= PLAYER_FRICT if direction.y == :none
+    @vel.x *= PLAYER_FRICTION unless directions.include?(:right) || directions.include?(:left)
+    @vel.y *= PLAYER_FRICTION unless directions.include?(:up) || directions.include?(:down)
     @pos += @vel
 
-    turn(:body, direction) if direction != :none
+    facing = if directions.include?(:up) || directions.include?(:down)
+               directions.include?(:up) ? :up : :down
+             elsif directions.include?(:right) || directions.include?(:left)
+               directions.include?(:right) ? :right : :left
+             else
+               :none
+             end
+    turn(:body, facing) if facing != :none
 
   end
 end
 
 class Game
   attr_accessor :player, :bullets
-  
+
   def initialize
     trace! if TRACING_ENABLED
 
@@ -185,22 +230,17 @@ class Game
     @bullets = []
   end
 
-  
-  def get_move_dir(keyboard) # TODO: Don't use XYVector to represent anything that isn't an ACTUAL VECTOR!!!
-    dir = XYVector.new
-    dir.x = if keyboard.a == keyboard.d
-              :none
-            else
-              keyboard.a ? :left : :right
-            end
-    dir.y = if keyboard.w == keyboard.s
-              :none
-            else
-              keyboard.w ? :up : :down
-            end
-    dir
+
+  # @param [KeySet] keyboard
+  # @return [Array<Symbol>]
+  def get_move_dir(keyboard)
+    dirs = []
+    dirs.push(keyboard.a == keyboard.d ? :none : keyboard.a ? :left : :right)
+    dirs.push(keyboard.w == keyboard.s ? :none : keyboard.w ? :up : :down)
+    dirs
   end
 
+  # @param [GTK::KeyboardKeys] keyboard
   def get_shoot_dir(keyboard)
     if keyboard.up == keyboard.down
       if keyboard.left == keyboard.right
@@ -213,9 +253,9 @@ class Game
     end
   end
 
-  # @param [Object] args
+  # @param [Args] args
   def tick(args)
-    player.move get_move_dir args.inputs.keyboard.key_held
+    player.move(get_move_dir(args.inputs.keyboard.key_held))
     bullet = player.shoot get_shoot_dir args.inputs.keyboard.key_held
     @bullets << bullet if bullet
     # Todo: Find a more efficient method.
@@ -225,13 +265,14 @@ class Game
 end
 
 $game = Game.new
+$sprite_const = PLAYER_SPRITES
 
+# @param [Args] args
 def tick(args)
   $game.tick args
   args.outputs.background_color = [128, 128, 128]
-  args.outputs.sprites << $game.player.offset_sprite(:body) #Todo: static sprites?
-  args.outputs.sprites << $game.player.offset_sprite(:head) #Todo: static sprites?
-  args.outputs.sprites << $game.player.offset_sprite(:face) #Todo: static sprites?
+  args.outputs.sprites << $game.player.offset_sprites
   args.outputs.sprites << $game.bullets.map { |b| b.sprite } # Todo: static sprites?
+  #noinspection RubyResolve
   args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
 end
