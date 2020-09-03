@@ -1,16 +1,4 @@
-PLAYER_SPRITE_PATH = 'sprites/circle-white.png'
 PLAYER_SPRITE_SHEET_PATH = 'sprites/player_sheet.png'
-PLAYER_HEAD_DOWN_SPRITE_PATH = 'sprites/player_head_down.png'
-PLAYER_HEAD_UP_SPRITE_PATH = 'sprites/player_head_up.png'
-PLAYER_HEAD_LEFT_SPRITE_PATH = 'sprites/player_head_left.png'
-PLAYER_HEAD_RIGHT_SPRITE_PATH = 'sprites/player_head_right.png'
-PLAYER_FACE_DOWN_SPRITE_PATH = 'sprites/player_face_down.png'
-PLAYER_FACE_UP_SPRITE_PATH = 'sprites/player_face_up.png'
-PLAYER_FACE_LEFT_SPRITE_PATH = 'sprites/player_face_left.png'
-PLAYER_FACE_RIGHT_SPRITE_PATH = 'sprites/player_face_right.png'
-PLAYER_BODY_Y_SPRITE_PATH = 'sprites/player_body_y.png'
-PLAYER_BODY_LEFT_SPRITE_PATH = 'sprites/player_body_left.png'
-PLAYER_BODY_RIGHT_SPRITE_PATH = 'sprites/player_body_right.png'
 PLAYER_SPRITE_W = 64
 PLAYER_SPRITE_H = 128
 PLAYER_SPEED_LIMIT = 5.0
@@ -22,4 +10,25 @@ BULLET_SPEED = 8.0
 BULLET_COOLDOWN = 12
 BULLET_MOMENTUM = 1.0   # shooter_vel * BULLET_MOMENTUM + base_bullet_vel = bullet_vel (kinda)
 BULLET_DESPAWN_RANGE = 50
-TRACING_ENABLED = false
+TRACING_ENABLED = true
+
+PLAYER_SPRITES = {
+    body: {
+        down: 'sprites/player_body_y.png',
+        up: 'sprites/player_body_y.png',
+        left: 'sprites/player_body_left.png',
+        right: 'sprites/player_body_right.png',
+    },
+    face: {
+        down: 'sprites/player_face_down.png',
+        up: 'sprites/player_face_up.png',
+        left: 'sprites/player_face_left.png',
+        riodyght: 'sprites/player_face_right.png'
+    },
+    head: {
+        down: 'sprites/player_head_down.png',
+        up: 'sprites/player_head_up.png',
+        left: 'sprites/player_head_left.png',
+        right: 'sprites/player_head_right.png'
+    }
+}

@@ -1,5 +1,9 @@
 require 'app/constants.rb'
 
+unless respond_to?(:trace!)
+  def trace!; end
+end
+
 class XYVector
   #@type [Float]
   attr_accessor :x
@@ -29,31 +33,32 @@ class XYVector
   # @return [XYVector, Float] Returns scaled vector if lhs is a scalar, and dot product if lhs is a vector.
   def *(lhs)
     return (@x * lhs.x + @y * lhs.y) if lhs.is_a? XYVector # Dot product
-    XYVector.new(@x * scalar, @y * scalar) # Scalar multiplication
+    XYVector.new(@x * lhs, @y * lhs) # Scalar multiplication
   end
 
-  # @param [Numeric] scalar
-  def /(scalar)
-    XYVector.new(@x / scalar, @y / scalar)
-  end
-
-  # Takes the dot product of two vectors
-  # @param [XYVector] vector
-  # @return [Float]
-  def dot(vector)
-    @x * vector.x + @y * vector.y
+  # @param [Numeric] lhs
+  def /(lhs)
+    XYVector.new(@x / lhs, @y / lhs)
   end
 
   # @return [Float]
   def len
     Math.sqrt(@y ** 2 + @x ** 2)
   end
+
+  def serialize; { x: x, y: y }; end
+  def inspect; serialize.to_s end
+  def to_s; serialize.to_s; end
 end
 
 
 class Sprite
-  #noinspection RubyResolve
+  
   attr_sprite
+  def initialize(w, h)
+    @w = w
+    @h = h
+  end
 end
 
 class Bullet
@@ -61,13 +66,10 @@ class Bullet
 
   # @param [XYVector] pos
   # @param [XYVector] vel
-  #noinspection RubyResolve
   def initialize(pos, vel)
     trace! if TRACING_ENABLED
-    @sprite = Sprite.new
+    @sprite = Sprite.new BULLET_SPRITE_SIZE, BULLET_SPRITE_SIZE
     @sprite.path = BULLET_SPRITE_PATH
-    @sprite.w = BULLET_SPRITE_SIZE
-    @sprite.h = BULLET_SPRITE_SIZE
     @pos = pos
     @vel = vel
   end
@@ -83,80 +85,64 @@ class Bullet
   end
 
   def offset
-    #noinspection RubyResolve
+    
     @pos - XYVector.new(@sprite.w, @sprite.h) * 0.5
   end
 end
 
 class Player
-  attr_accessor :sprites, :pos, :fire_cooldown
-  #noinspection RubyResolve
+  attr_accessor :sprites, :fire_cooldown
+  #@type [XYVector]
+  attr_accessor :pos
+
+  
   # @param [XYVector] pos
   def initialize(pos)
-    trace! if TRACING_ENABLED
-    #player uses three layers of sprites: head_sprite, body_sprite, face_sprite
-    @head_sprite = Sprite.new
-    @head_sprite.path = PLAYER_HEAD_DOWN_SPRITE_PATH
-    @head_sprite.w = PLAYER_SPRITE_W
-    @head_sprite.h = PLAYER_SPRITE_H
-
-    @body_sprite = Sprite.new
-    @body_sprite.path = PLAYER_BODY_X_SPRITE_PATH
-    @body_sprite.w = PLAYER_SPRITE_W
-    @body_sprite.h = PLAYER_SPRITE_H
-    #Since body_sprite will need to be animated at some point I am leaving these here
-    #@body_sprite.tile_x = 0
-    #@body_sprite.tile_y = 0
-    #@body_sprite.tile_w = PLAYER_SPRITE_W
-    #@body_sprite.tile_h = PLAYER_SPRITE_H
-
-    @face_sprite = Sprite.new
-    @face_sprite.path = PLAYER_FACE_DOWN_SPRITE_PATH
-    @face_sprite.w = PLAYER_SPRITE_W
-    @face_sprite.h = PLAYER_SPRITE_H
-
     #@type [XYVector]
     @pos = pos
     @vel = XYVector.new
     @fire_cooldown = 0
+
+    trace! if TRACING_ENABLED
+    #player uses three layers of sprites: head_sprite, body_sprite, face_sprite
+    @sprites = {
+        body: Sprite.new(PLAYER_SPRITE_W,PLAYER_SPRITE_H),
+        head: Sprite.new(PLAYER_SPRITE_W,PLAYER_SPRITE_H),
+        face: Sprite.new(PLAYER_SPRITE_W,PLAYER_SPRITE_H),
+    }
+    turn( :body, :down)
+    turn( :head, :down)
+    turn( :face, :down)
+
+    #Since body_sprite will need to be animated at some point I am leaving these here
+    #@sprites[:body].tile_x = 0
+    #@sprites[:body].tile_y = 0
+    #@sprites[:body].tile_w = PLAYER_SPRITE_W
+    #@sprites[:body].tile_h = PLAYER_SPRITE_H
+    #
+  end
+
+  def turn(part, direction)
+    @sprites[part].path = PLAYER_SPRITES[part][direction]
   end
 
   #Sprite functions. can all these be put together somehow?
-  def head_sprite
-    @head_sprite.x = offset.x
-    @head_sprite.y = offset.y
-    @head_sprite
+  def offset_sprite part
+    @sprites[part].x = offset.x
+    @sprites[part].y = offset.y
+    @sprites[part]
   end
 
-  def body_sprite
-    @body_sprite.x = offset.x
-    @body_sprite.y = offset.y
-    @body_sprite
-  end
-
-  def face_sprite
-    @face_sprite.x = offset.x
-    @face_sprite.y = offset.y
-    @face_sprite
-  end
-
-  #noinspection RubyResolve
+  
   def offset
-    @pos - XYVector.new(@head_sprite.w, @head_sprite.h) * 0.5
+    @pos - XYVector.new(PLAYER_SPRITE_W.to_f, PLAYER_SPRITE_H.to_f) * 0.5
   end
 
   def shoot(direction)
-    #look in that direction
-    @head_sprite.path = PLAYER_HEAD_RIGHT_SPRITE_PATH if direction == :right
-    @head_sprite.path = PLAYER_HEAD_LEFT_SPRITE_PATH if direction == :left
-    @head_sprite.path = PLAYER_HEAD_UP_SPRITE_PATH if direction == :up
-    @head_sprite.path = PLAYER_HEAD_DOWN_SPRITE_PATH if direction == :down
 
+    turn(:head, direction) if direction != :none
     #items will modify these beyond direction. will need their own function
-    @face_sprite.path = PLAYER_FACE_RIGHT_SPRITE_PATH if direction == :right
-    @face_sprite.path = PLAYER_FACE_LEFT_SPRITE_PATH if direction == :left
-    @face_sprite.path = PLAYER_FACE_UP_SPRITE_PATH if direction == :up
-    @face_sprite.path = PLAYER_FACE_DOWN_SPRITE_PATH if direction == :down
+    turn(:face, direction) if direction != :none
 
     #fire the bullet
     return nil if (@fire_cooldown -= 1) > 0 || direction == :none
@@ -183,19 +169,14 @@ class Player
     @vel.y *= PLAYER_FRICT if direction.y == :none
     @pos += @vel
 
-
-    #turn the body the way we wish to move
-    @body_sprite.path = PLAYER_BODY_Y_SPRITE_PATH if direction.y == :up
-    @body_sprite.path = PLAYER_BODY_Y_SPRITE_PATH if direction.y == :down
-    @body_sprite.path = PLAYER_BODY_RIGHT_SPRITE_PATH if direction.x == :right
-    @body_sprite.path = PLAYER_BODY_LEFT_SPRITE_PATH if direction.x == :left
+    turn(:body, direction) if direction != :none
 
   end
 end
 
 class Game
   attr_accessor :player, :bullets
-  #noinspection RubyResolve
+  
   def initialize
     trace! if TRACING_ENABLED
 
@@ -204,7 +185,7 @@ class Game
     @bullets = []
   end
 
-  #noinspection RubyResolve
+  
   def get_move_dir(keyboard) # TODO: Don't use XYVector to represent anything that isn't an ACTUAL VECTOR!!!
     dir = XYVector.new
     dir.x = if keyboard.a == keyboard.d
@@ -232,8 +213,7 @@ class Game
     end
   end
 
-  # @param [AttrGTK] args
-  #noinspection RubyResolve
+  # @param [Object] args
   def tick(args)
     player.move get_move_dir args.inputs.keyboard.key_held
     bullet = player.shoot get_shoot_dir args.inputs.keyboard.key_held
@@ -245,13 +225,13 @@ class Game
 end
 
 $game = Game.new
-#noinspection RubyResolve
+
 def tick(args)
   $game.tick args
   args.outputs.background_color = [128, 128, 128]
-  args.outputs.sprites << $game.player.body_sprite #Todo: static sprites?
-  args.outputs.sprites << $game.player.head_sprite #Todo: static sprites?
-  args.outputs.sprites << $game.player.face_sprite #Todo: static sprites?
+  args.outputs.sprites << $game.player.offset_sprite(:body) #Todo: static sprites?
+  args.outputs.sprites << $game.player.offset_sprite(:head) #Todo: static sprites?
+  args.outputs.sprites << $game.player.offset_sprite(:face) #Todo: static sprites?
   args.outputs.sprites << $game.bullets.map { |b| b.sprite } # Todo: static sprites?
   args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
 end
