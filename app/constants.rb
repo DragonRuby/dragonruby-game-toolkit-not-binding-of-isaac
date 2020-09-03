@@ -8,7 +8,7 @@ BULLET_SPRITE_PATH = 'sprites/bullet.png'
 BULLET_SPRITE_SIZE = 32
 BULLET_SPEED = 8.0
 BULLET_COOLDOWN = 12
-BULLET_MOMENTUM = 1.0   # shooter_vel * BULLET_MOMENTUM + base_bullet_vel = bullet_vel (kinda)
+BULLET_MOMENTUM = 0.5   # shooter_vel * BULLET_MOMENTUM + base_bullet_vel = bullet_vel (kinda)
 BULLET_DESPAWN_RANGE = 50
 TRACING_ENABLED = false
 

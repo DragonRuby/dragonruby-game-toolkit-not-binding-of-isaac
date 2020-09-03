@@ -183,15 +183,22 @@ class Player
     #fire the bullet
     return nil if (@fire_cooldown -= 1) > 0 || direction == :none
     @fire_cooldown = BULLET_COOLDOWN
-    b_vel = nil
-    b_vel = XYVector.new(BULLET_SPEED, 0.0) if direction == :right
-    b_vel = XYVector.new(-BULLET_SPEED, 0.0) if direction == :left
-    b_vel = XYVector.new(0.0, BULLET_SPEED) if direction == :up
-    b_vel = XYVector.new(0.0, -BULLET_SPEED) if direction == :down
-    if b_vel
+    bullet_initial_vel = nil
+    bullet_initial_vel = XYVector.new(BULLET_SPEED, 0.0) if direction == :right
+    bullet_initial_vel = XYVector.new(-BULLET_SPEED, 0.0) if direction == :left
+    bullet_initial_vel = XYVector.new(0.0, BULLET_SPEED) if direction == :up
+    bullet_initial_vel = XYVector.new(0.0, -BULLET_SPEED) if direction == :down
+    if bullet_initial_vel
+      a = @vel
+      b = bullet_initial_vel
+      cos_theta = ((a*b)/(a.len*b.len))
+      parallel_vel = b*((a*b)/(b*b))
+      perpendicular_vel = a - parallel_vel
+      momentum_vector = (perpendicular_vel + (cos_theta > 0 ? parallel_vel : XYVector.new)) * BULLET_MOMENTUM
+      bullet_true_vel = momentum_vector + bullet_initial_vel
       # I don't know why, I don't want to know why, I shouldn't have to wonder why, but for whatever reason,
-      # RubyMine thinks @pos is a Float on this line and this line only unless we do this terribleness.
-      Bullet.new(XYVector.new+@pos, (b_vel + @vel * BULLET_MOMENTUM))
+      # RubyMine thinks both of these are Floats on this line and this line only unless we do this terribleness.
+      Bullet.new(XYVector.new+@pos, XYVector.new+bullet_true_vel)
     end
   end
 
