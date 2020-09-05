@@ -1,71 +1,9 @@
 require 'app/constants.rb'
 require 'app/ruby_mine_appeaser.rb'
-
-
-class XYVector
-  #@type [Float]
-  attr_accessor :x
-  #@type [Float]
-  attr_accessor :y
-
-  # @param [Float] x
-  # @param [Float] y
-  def initialize(x = 0.0, y = 0.0)
-    #@type [Float]
-    @x = x.to_f
-    #@type [Float]
-    @y = y.to_f
-  end
-
-  # @param [XYVector] lhs
-  def +(lhs)
-    XYVector.new(@x + lhs.x, @y + lhs.y)
-  end
-
-  # @param [XYVector] lhs
-  def -(lhs)
-    XYVector.new(@x - lhs.x, @y - lhs.y)
-  end
-
-  # @param [Float, XYVector] lhs
-  # @return [XYVector, Float] Returns scaled vector if lhs is a scalar, and dot product if lhs is a vector.
-  def *(lhs)
-    return (@x * lhs.x + @y * lhs.y) if lhs.is_a? XYVector # Dot product
-    XYVector.new(@x * lhs, @y * lhs) # Scalar multiplication
-  end
-
-  # @param [Numeric] lhs
-  def /(lhs)
-    XYVector.new(@x / lhs, @y / lhs)
-  end
-
-  # @return [Float]
-  def len
-    Math.sqrt(@y ** 2 + @x ** 2)
-  end
-
-  def theta
-    Math.atan2(@y, @x)
-  end
-
-  # @param [Float] theta_prime
-  def theta=(theta_prime)
-    @x, @y = *(XYVector.new(*theta_prime.vector) * self.len).serialize.values
-  end
-
-  def serialize
-    {x: x, y: y};
-  end
-
-  def inspect
-    serialize.to_s
-  end
-
-  def to_s
-    serialize.to_s;
-  end
-end
-
+require 'lib/prng.rb'
+require 'lib/xy_vector.rb'
+require 'app/dungeon.rb'
+require 'app/room.rb'
 
 class Sprite
   attr_sprite
@@ -305,3 +243,8 @@ def tick(args)
   #noinspection RubyResolve
   args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
 end
+
+dm = DungeonMaster.new("DEADBEEF") if true
+dm.generate(100)
+puts dm.pretty_str
+puts dm.layout.to_s
