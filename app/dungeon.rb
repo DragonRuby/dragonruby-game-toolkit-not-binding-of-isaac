@@ -255,6 +255,8 @@ class Dungeon
   attr_accessor :rooms
   attr_accessor :coord
   attr_accessor :sprite
+  attr_accessor :whole_map_str
+  attr_accessor :room_map_str
 
   # @param [Array<Room>] rooms
   # @param [Hash] layout
@@ -323,6 +325,8 @@ class Dungeon
     path = hash_walker[get_room(*coord)&.ordered_neighbor_dirs&.last]
     # puts path
     @sprite = [0, 0, 1280, 720, path]
+    @whole_map_str = pretty_str
+    @room_map_str = pretty_str(true)
   end
 
   # @param [Room] room

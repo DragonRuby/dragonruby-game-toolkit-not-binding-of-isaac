@@ -318,12 +318,12 @@ def tick(args)
   args.outputs.labels << [10,  60, "ROOM_TYPE: :#{$game.dungeon.curr_room&.type.to_s}", 255, 0, 0, 255]
   args.outputs.labels << [10,  90, "ROOM_POS : #{$game.dungeon.curr_room&._coord_str}", 255, 0, 0, 255]
   map_y = 760
-  args.outputs.labels << $game.dungeon.pretty_str.split("\n").map do |str|
+  args.outputs.labels << $game.dungeon.whole_map_str.split("\n").map do |str|
     map_y -= 20
     [5, map_y, "#{str}", 255, 0, 0, 255]
   end
   map_y = 760
-  args.outputs.labels << $game.dungeon.pretty_str(true).split("\n").map do |str|
+  args.outputs.labels << $game.dungeon.room_map_str.split("\n").map do |str|
     map_y -= 20
     [5, map_y, "#{str}", 0, 0, 255, 255]
   end
