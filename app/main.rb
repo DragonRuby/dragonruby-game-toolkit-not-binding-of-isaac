@@ -199,14 +199,15 @@ end
 class Game
   attr_accessor :player, :bullets, :dungeon
 
-  def initialize
+  # @param [String] seed
+  def initialize(seed='106dqjno')
     trace! if TRACING_ENABLED
 
     @player = Player.new XYVector.new(640.0, 360.0)
 
     @bullets = []
 
-    @dungeon_master = DungeonMaster.new('106dqjno')
+    @dungeon_master = DungeonMaster.new(seed)
     @dungeon        = @dungeon_master.generate(
         {
             normal:       40,
@@ -326,5 +327,13 @@ def tick(args)
   args.outputs.labels << $game.dungeon.room_map_str.split("\n").map do |str|
     map_y -= 20
     [5, map_y, "#{str}", 0, 0, 255, 255]
+  end
+end
+
+def reseed(seed="")
+  if seed.length != 8
+    puts "Enter an 8 character long string of alphanumeric characters."
+  else
+    $game = Game.new(seed)
   end
 end
