@@ -188,19 +188,14 @@ class DungeonMaster
       end
       tmp    = 0
       cands  = cands.sort_by do |cand|
-        cns = coord_neighbors(*cand).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
-        if cns.length < 2
-          score = 0
-        else
-          score = cns.flat_map { |a| cns.map { |b| [a, b] } }
-                     .find_all { |ab| ab[0] != ab[1] }
-                     .map { |ab| ab.sort_by { |c| [c.x, c.y] } }
-                     .uniq { |ab| "#{ab[0].x},#{ab[0].y},#{ab[1].x},#{ab[1].y}" }
-                     .map { |ab| ab[0].dist_to(ab[1]) }
-                     .map { |s| s == 2 ? 0 : s }
-                     .max
-        end
-        [score, tmp += 1]
+        cns   = coord_neighbors(*cand)
+        score = cns.map { |c| get_room(*c) }          # Map each coordinate to its respective room, or nil if unoccupied.
+                   .find_all { |a| a != nil }         # Discard the unoccupied rooms.
+                   .combination(2)                    # Pair up the rooms.
+                   .map { |ab| ab[0].dist_to(ab[1]) } # Get the distance between the rooms in each pair.
+                   .max                               # Get the highest score.
+
+        [score || 0, tmp += 1]
       end
       coord  = cands[-1]
       neighs = coord_neighbors(*coord).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
@@ -266,7 +261,7 @@ class Dungeon
     @rooms  = rooms
     @layout = layout
     @coord  = [0, 0]
-    @seed = seed
+    @seed   = seed
     update_sprite
   end
 
