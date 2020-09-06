@@ -1,6 +1,3 @@
-require 'app/room.rb'
-require 'lib/prng.rb'
-
 # Creates the dungeon. I *could* call it LevelLayoutFactory, but where's the fun in that?
 class DungeonMaster
 
@@ -14,7 +11,6 @@ class DungeonMaster
     @layout   = {}
     #@type [Array<Room>]
     @rooms = []
-    # trace! self
   end
 
   # @return [String]
@@ -73,24 +69,20 @@ class DungeonMaster
   # @param [Hash{Symbol=>Integer}] room_counts The number of standard rooms to generate
   def generate(room_counts)
     generate_normal_rooms(room_counts[:normal] || 10)
-    puts pretty_str
     generate_boss_rooms(room_counts[:boss] || 1)
-    puts pretty_str
     generate_super_secret_rooms(room_counts[:super_secret] || 1)
-    puts pretty_str
+    # TODO: Maybe we want to add shops and item rooms shuffled together? So they aren't all on one side of the dungeon?
     generate_shop_rooms(room_counts[:shop] || 1)
-    puts pretty_str
     generate_item_rooms(room_counts[:item] || 1)
-    puts pretty_str
-    trace! self
     generate_secret_rooms(room_counts[:secret] || 1)
-    puts pretty_str
+    # TODO: Assign room variants
   end
 
   # @param [Integer] count
   def generate_normal_rooms(count)
     room_counter = 0
     a            = []
+    #noinspection RubyYardParamTypeMatch
     a.push(add_room(0, 0, :spawn, nil))
     while (room_counter < count) && !(a.empty?)
       idx       = @prng.int(0..(a.length - 1))
@@ -120,7 +112,7 @@ class DungeonMaster
       puts '~~~~~~~~~'
       puts @rooms.find_all { |r| (r.type == :normal) }
       puts @rooms.find_all { |r| (r.type == :normal) && r.dead_end? }
-      raise RuntimeError, "The universe just LOVES proving me wrong, doesn't it? (Found no valid dead ends)"
+      raise RuntimeError, "Found no valid dead ends! What!?"
     end
     out
   end
@@ -176,51 +168,57 @@ class DungeonMaster
 
   # @param [Integer] count The number of secret rooms to generate
   def generate_secret_rooms(count)
-    # TODO: Despaghettify this whole method.
-    # I am writing this comment immediately after writing the method, and I still don't know what exactly it does.
+    banned_types = {
+        boss:         true,
+        item:         true,
+        super_secret: true,
+        secret:       true,
+    }
 
-    # Used for scoring candidate coordinate.
-    # @param [Array<Integer>] c The candidate coordinate
-    score_func = lambda do |c|
-      neigh  = coord_neighbors(*c)
-      scores = neigh.map do |n|
-        nr = get_room *n
-        (nr == nil) ? 0 : nr.depth
-      end
-      [scores.count { |s| s != 0 }, scores.reduce(:+)]
-    end
-
-    curr_count = 0
-    while curr_count < count
-      parent     = get_longest_dead_end
-      candidates = valid_children(parent.x, parent.y, 2, 4)
-      candidates = candidates.find_all do |c|
-        neigh = coord_neighbors(*c)
-        0 != neigh.count do |n|
-          nr = get_room(*n)
-          nr != nil && nr.type != :boss && nr.type != :super_secret
+    cur_num = 0
+    xs      = ((@rooms.map { |r| r.x }.min)..(@rooms.map { |r| r.x }.max))
+    ys      = ((@rooms.map { |r| r.y }.min)..(@rooms.map { |r| r.y }.max))
+    while cur_num < count
+      cands  = xs.flat_map { |x| ys.map { |y| [x, y] } }.find_all do |xy|
+        get_room(*xy) == nil && 1 <= coord_neighbors(*xy).count do |n|
+          r = get_room(*n)
+          !(r == nil || banned_types[r.type])
         end
       end
-      tmp        = 0
-      candidates = candidates.sort_by { |c| [*(score_func.call(c)), tmp += 1] }.reverse
-      max_score  = score_func.call(candidates.last)
-      candidates = candidates.find_all do |c|
-        score = score_func.call(c)
-        score[0] == max_score[0] && score[1] == max_score[1]
+      tmp    = 0
+      cands  = cands.sort_by do |cand|
+        cns = coord_neighbors(*cand).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
+        if cns.length < 2
+          score = 0
+        else
+          score = cns.flat_map { |a| cns.map { |b| [a, b] } }
+                     .find_all { |ab| ab[0] != ab[1] }
+                     .map { |ab| ab.sort_by { |c| [c.x, c.y] } }
+                     .uniq { |ab| "#{ab[0].x},#{ab[0].y},#{ab[1].x},#{ab[1].y}" }
+                     .map { |ab| ab[0].dist_to(ab[1]) }
+                     .map { |s| s == 2 ? 0 : s }
+                     .max
+        end
+        [score, tmp += 1]
       end
-      xy         = @prng.sample candidates
-      return curr_count if xy == nil
-      x, y = *xy
-      add_room(x, y, type, parent)
-      curr_count += 1
+      coord  = cands[-1]
+      neighs = coord_neighbors(*coord).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
+      raise(RuntimeError, "This should be impossible") if neighs.empty?
+      #noinspection RubyYardParamTypeMatch
+      room = add_room(coord[0], coord[1], :secret, neighs.pop)
+      neighs.each do |neigh|
+        room.add_neighbor neigh
+        neigh.add_neighbor room
+      end
+      cur_num += 1
     end
-    curr_count
+    cur_num
   end
 
 
   def pretty_str
     char_map                = Hash.new('#')
-    char_map[:spawn]        = 'O'
+    char_map[:spawn]        = '█'
     char_map[:normal]       = 'o'
     char_map[:boss]         = 'X'
     char_map[:item]         = 'I'
@@ -230,12 +228,19 @@ class DungeonMaster
 
     xs  = ((@rooms.map { |r| r.x }.min - 1)..(@rooms.map { |r| r.x }.max + 1))
     ys  = ((@rooms.map { |r| r.y }.min - 1)..(@rooms.map { |r| r.y }.max + 1))
-    str = '╔' + xs.map { |_| '═' }.join('') + "╗\n"
+    str = "\n╔" + xs.map { |_| '═' }.join('') + "╗\n"
     ys.to_a.reverse.each do |y|
       str += '║'
       xs.each do |x|
         room = get_room(x, y)
-        str  += (room != nil) ? char_map[room.type] : " "
+        #str  += (room != nil) ? char_map[room.type] : " "
+        if room == nil
+          str += " "
+        elsif room.type == :normal
+          str += room.directional_char
+        else
+          str += char_map[room.type]
+        end
       end
       str += "║\n"
     end
@@ -243,11 +248,12 @@ class DungeonMaster
   end
 end
 
+# TODO
 class Dungeon
   attr_accessor :layout
 
   # @param [Hash{Pair => Room}] rooms
-  def initialize rooms
-
+  def initialize(rooms)
+    @layout = rooms
   end
 end

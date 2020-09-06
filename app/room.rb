@@ -75,24 +75,36 @@ class Room
     @depth
   end
 
-  # @param [Room] room
-  def dist_to(room)
-    found = {}
-    _dist_to(room, nil, found)
+  def _coord_str
+    "[#{@x},#{@y}]"
   end
 
   # @param [Room] room
-  # @param [Room, nil] src
-  # @param [Hash] found
-  def _dist_to(room, src, found)
-    if room == self
-      found[:it] = true
-      0
-    elsif neighbors.length == 0 || found[:it]
-      Integer(Float::INFINITY)
-    else
-      1 + neighbors.values.find_all { |n| n != src }.map { |n| n.dist_to(room, self) }.min
+  def dist_to(room)
+    # puts "#{self._coord_str} => #{room._coord_str}"
+    q = [self]
+    v = [self]
+    e = {}
+    while q.any?
+      n = q.shift
+      break if n == room
+      #noinspection RubyNilAnalysis
+      n.neighbors.values.each do |m|
+        next if v.include? m
+        q << m
+        v << m
+        e[m._coord_str] = n
+      end
     end
+    raise RuntimeError "Disconnected dungeon!?" unless v.include? room
+    d = 0
+    n = room
+    while n != self
+      n = e[n._coord_str]
+      d += 1
+    end
+    # puts "#{self._coord_str} => #{room._coord_str} = #{d}"
+    d
   end
 
   def dead_end?
@@ -106,6 +118,50 @@ class Room
         y:         y,
         neighbors: Hash[neighbors.map { |k, v| [k, [v.x, v.y]] }]
     }
+  end
+
+  def directional_char
+    one_neigh = {
+        E: '╞',
+        N: '╨',
+        S: '╥',
+        W: '╡',
+    }
+    two_neigh = {
+        E: {
+            N: '╚',
+            S: '╔',
+            W: '═',
+        },
+        N: {
+            S: '║',
+            W: '╝',
+        },
+        S: {
+            W: '╗'
+        }
+    }
+    three_neigh = {
+        E: '╣',
+        N: '╦',
+        S: '╩',
+        W: '╠',
+    }
+    case neighbors.length
+    when 0
+      'O'
+    when 1
+      one_neigh[neighbors.keys[0]]
+    when 2
+      dirs = neighbors.keys.sort_by{ |k| k.to_s}
+      two_neigh[dirs[0]][dirs[1]]
+    when 3
+      three_neigh[(%i[E N S W]-neighbors.keys)[0]]
+    when 4
+      '╬'
+    else
+      '?'
+    end
   end
 
   def inspect

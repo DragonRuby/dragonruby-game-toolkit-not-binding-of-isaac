@@ -1,9 +1,13 @@
 require 'app/constants.rb'
-require 'app/ruby_mine_appeaser.rb'
 require 'lib/prng.rb'
 require 'lib/xy_vector.rb'
 require 'app/dungeon.rb'
 require 'app/room.rb'
+require 'lib/profiler.rb'
+require 'lib/tests.rb'
+
+puts 'RUNNING TESTS'
+Tests.test_dungeon_generation
 
 class Sprite
   attr_sprite
@@ -14,6 +18,7 @@ class Sprite
     @h = h
   end
 
+  # @param [String] new_path
   def path=(new_path)
     @path = new_path if @path != new_path
   end
@@ -26,12 +31,12 @@ class Bullet
   # @param [XYVector] vel
   def initialize(pos, vel)
     trace! if TRACING_ENABLED
-    @sprite = Sprite.new BULLET_SPRITE_SIZE, BULLET_SPRITE_SIZE
+    @sprite      = Sprite.new BULLET_SPRITE_SIZE, BULLET_SPRITE_SIZE
     @sprite.path = BULLET_SPRITE_PATH
-    @pos = pos
-    @vel = vel
+    @pos         = pos
+    @vel         = vel
     # Point the Bullet in the direction of motion, snapped to the nearest BULLET_VISUAL_ANGLE_SNAP degrees
-    @sprite.angle = (vel.theta * 180 / (BULLET_VISUAL_ANGLE_SNAP*Math::PI)).round * BULLET_VISUAL_ANGLE_SNAP
+    @sprite.angle          = (vel.theta * 180 / (BULLET_VISUAL_ANGLE_SNAP * Math::PI)).round * BULLET_VISUAL_ANGLE_SNAP
     @sprite.angle_anchor_x = 0.5
     @sprite.angle_anchor_y = 0.5
   end
@@ -62,10 +67,10 @@ class Player
   # @param [XYVector] pos
   def initialize(pos)
     #@type [XYVector]
-    @pos = pos
-    @vel = XYVector.new
+    @pos           = pos
+    @vel           = XYVector.new
     @fire_cooldown = 0
-    @bullet_count = 0
+    @bullet_count  = 0
 
     trace! if TRACING_ENABLED
     #player uses three layers of sprites: head_sprite, body_sprite, face_sprite
@@ -105,7 +110,7 @@ class Player
   end
 
   def offset_sprites
-    @sprites.keys.map { |s| offset_sprite s}
+    @sprites.keys.map { |s| offset_sprite s }
   end
 
 
@@ -123,56 +128,58 @@ class Player
     #reset the bullet count, always start from the same eye
     @bullet_count = 0 if direction == :none
 
-    
+
     #fire the bullet
     return nil if (@fire_cooldown -= 1) > 0 || direction == :none
-    @fire_cooldown = BULLET_COOLDOWN
+    @fire_cooldown     = BULLET_COOLDOWN
     bullet_initial_vel = nil
     bullet_initial_vel = XYVector.new(BULLET_SPEED, 0.0) if direction == :right
     bullet_initial_vel = XYVector.new(-BULLET_SPEED, 0.0) if direction == :left
     bullet_initial_vel = XYVector.new(0.0, BULLET_SPEED) if direction == :up
     bullet_initial_vel = XYVector.new(0.0, -BULLET_SPEED) if direction == :down
     if bullet_initial_vel
-      a = @vel
-      b = bullet_initial_vel
-      cos_theta = ((a*b)/(a.len*b.len))
-      parallel_vel = b*((a*b)/(b*b))
+      a                 = @vel
+      b                 = bullet_initial_vel
+      cos_theta         = ((a * b) / (a.len * b.len))
+      parallel_vel      = b * ((a * b) / (b * b))
       perpendicular_vel = a - parallel_vel
-      momentum_vector = (perpendicular_vel + (cos_theta > 0 ? parallel_vel : XYVector.new)) * BULLET_MOMENTUM
-      bullet_true_vel = momentum_vector + bullet_initial_vel
+      momentum_vector   = (perpendicular_vel + (cos_theta > 0 ? parallel_vel : XYVector.new)) * BULLET_MOMENTUM
+      bullet_true_vel   = momentum_vector + bullet_initial_vel
 
       #calculates where the bullet should appear
-      eyePosition = XYVector.new
-      if direction == :down
-        eyePosition = @bullet_count%2 == 0 ? XYVector.new(12, -4) : XYVector.new(-12, -4)
-      elsif direction == :left
-        eyePosition = @bullet_count%2 == 0 ? XYVector.new(-16, -8) : XYVector.new(-16, 8)
-      elsif direction == :right
-        eyePosition = @bullet_count%2 == 0 ? XYVector.new(16, 8) : XYVector.new(16, -8)
-      elsif direction == :up
-        eyePosition = @bullet_count%2 == 0 ? XYVector.new(12, 16) : XYVector.new(-12, 16)
-      end
+      eye_position = case direction
+                     when :down
+                       @bullet_count % 2 == 0 ? XYVector.new(12.0, -4.0) : XYVector.new(-12.0, -4.0)
+                     when :left
+                       @bullet_count % 2 == 0 ? XYVector.new(-16.0, -8.0) : XYVector.new(-16.0, 8.0)
+                     when :right
+                       @bullet_count % 2 == 0 ? XYVector.new(16.0, 8.0) : XYVector.new(16.0, -8.0)
+                     when :up
+                       @bullet_count % 2 == 0 ? XYVector.new(12.0, 16.0) : XYVector.new(-12.0, 16.0)
+                     else
+                       @bullet_count % 2 == 0 ? XYVector.new(0.0, 0.0) : XYVector.new(0.0, 0.0)
+                     end
 
       #saves the bullet count to know which eye to appear on
       @bullet_count += 1
-      
+
       # I don't know why, I don't want to know why, I shouldn't have to wonder why, but for whatever reason,
       # RubyMine thinks both of these are Floats on this line and this line only unless we do this terribleness.
-      Bullet.new(eyePosition+@pos, XYVector.new+bullet_true_vel)
+      Bullet.new(eye_position + @pos, XYVector.new + bullet_true_vel)
     end
   end
 
   # @param [Array<Symbol>] directions
   def move(directions)
-    @vel.x = (@vel.x + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :right
-    @vel.x = (@vel.x - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :left
-    @vel.y = (@vel.y + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :up
-    @vel.y = (@vel.y - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :down
+    @vel.x        = (@vel.x + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :right
+    @vel.x        = (@vel.x - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :left
+    @vel.y        = (@vel.y + PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :up
+    @vel.y        = (@vel.y - PLAYER_ACCEL).clamp(-PLAYER_SPEED_LIMIT, PLAYER_SPEED_LIMIT) if directions.include? :down
     diagonal_comp = PLAYER_SPEED_LIMIT / @vel.len
-    @vel *= diagonal_comp if diagonal_comp < 1.0
-    @vel.x *= PLAYER_FRICTION unless directions.include?(:right) || directions.include?(:left)
-    @vel.y *= PLAYER_FRICTION unless directions.include?(:up) || directions.include?(:down)
-    @pos += @vel
+    @vel          *= diagonal_comp if diagonal_comp < 1.0
+    @vel.x        *= PLAYER_FRICTION unless directions.include?(:right) || directions.include?(:left)
+    @vel.y        *= PLAYER_FRICTION unless directions.include?(:up) || directions.include?(:down)
+    @pos          += @vel
 
     facing = if directions.include?(:up) || directions.include?(:down)
                directions.include?(:up) ? :up : :down
@@ -227,11 +234,11 @@ class Game
     @bullets << bullet if bullet
     # Todo: Find a more efficient method.
     @bullets = @bullets.each { |b| b.tick }
-                   .find_all { |b| b.pos.x.between?(0 - BULLET_DESPAWN_RANGE, 1280 + BULLET_DESPAWN_RANGE) && b.pos.y.between?(0 - BULLET_DESPAWN_RANGE, 720 + BULLET_DESPAWN_RANGE) } # Check if bullet is on-screen
+                       .find_all { |b| b.pos.x.between?(0 - BULLET_DESPAWN_RANGE, 1280 + BULLET_DESPAWN_RANGE) && b.pos.y.between?(0 - BULLET_DESPAWN_RANGE, 720 + BULLET_DESPAWN_RANGE) } # Check if bullet is on-screen
   end
 end
 
-$game = Game.new
+$game         = Game.new
 $sprite_const = PLAYER_SPRITES
 
 # @param [Args] args
@@ -243,7 +250,3 @@ def tick(args)
   #noinspection RubyResolve
   args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
 end
-
-dm = DungeonMaster.new("GIGA-MAP")
-dm.generate({})
-puts dm.pretty_str
