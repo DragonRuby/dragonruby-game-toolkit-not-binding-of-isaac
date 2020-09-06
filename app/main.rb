@@ -189,7 +189,8 @@ class Player
                :none
              end
     turn(:body, facing) if facing != :none
-
+    turn(:head, facing) if facing != :none
+    turn(:face, facing) if facing != :none
   end
 end
 
