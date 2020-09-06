@@ -244,7 +244,6 @@ def tick(args)
   args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
 end
 
-dm = DungeonMaster.new("DEADBEEF") if true
-dm.generate(100)
+dm = DungeonMaster.new("GIGA-MAP")
+dm.generate({})
 puts dm.pretty_str
-puts dm.layout.to_s
