@@ -169,9 +169,15 @@ class DungeonMaster
   # @param [Array<Integer>] candidate The [x,y] coord of the candidate to score
   # @return [Integer] The candidate's score. Higher is better.
   def score_secret_room_candidate(candidate)
+    banned_types = {
+        boss:         true,
+        item:         true,
+        super_secret: true,
+        secret:       true,
+    }
     coord_neighbors(*candidate)
         .map { |c| get_room(*c) } # Map each coordinate to its respective room, or nil if unoccupied.
-        .find_all { |a| a != nil } # Discard the unoccupied rooms.
+        .find_all { |a| a != nil && !banned_types[a.type]} # Discard the unoccupied rooms.
         .combination(2) # Pair up the rooms.
         .map { |ab| ab[0].dist_to(ab[1]) } # Get the distance between the rooms in each pair.
         .max || 0 # Use the highest score if there was at least one pair of rooms, default to a score of 0.
@@ -194,12 +200,12 @@ class DungeonMaster
                 .map { |xy| [*xy, get_room(*xy)] }
                 .find_all { |xyr| xyr[2] == nil }
                 .map { |xyr| [(xyr.first 2), coord_neighbors(*(xyr.first 2))] }
-                .map { |xyn| [xyn[0], xyn[1].map { |xy| get_room(*xy) }.count { |r| r != nil && !banned_types.keys.include?(r.type) }] }
+                .map { |xyn| [xyn[0], xyn[1].map { |xy| get_room(*xy) }.count { |r| r != nil && !banned_types[r.type] }] }
                 .find_all { |xyc| xyc[1] >= 1 }
                 .map { |xyc| xyc[0] }
                 .sort_by.with_index { |cand, idx| [score_secret_room_candidate(cand), idx] }
                 .last
-      neighs = coord_neighbors(*coord).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
+      neighs = coord_neighbors(*coord).map { |c| get_room(*c) }.find_all { |r| r != nil && !banned_types[r.type]}
       raise(RuntimeError, "This should be impossible") if neighs.empty?
       #noinspection RubyYardParamTypeMatch
       room = add_room(coord[0], coord[1], :secret, neighs.pop)
