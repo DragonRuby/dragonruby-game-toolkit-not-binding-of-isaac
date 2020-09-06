@@ -315,18 +315,19 @@ def tick(args)
   args.outputs.sprites << $game.player.offset_sprites
   args.outputs.sprites << $game.bullets.map { |b| b.sprite } # Todo: static sprites?
   #noinspection RubyResolve
-  args.outputs.labels << [10,  30, "FPS      : #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
-  args.outputs.labels << [10,  60, "ROOM_TYPE: :#{$game.dungeon.curr_room&.type.to_s}", 255, 0, 0, 255]
-  args.outputs.labels << [10,  90, "ROOM_POS : #{$game.dungeon.curr_room&._coord_str}", 255, 0, 0, 255]
+  args.outputs.labels << [10,  30, "FPS      : #{args.gtk.current_framerate.to_s.to_i}", 0, 0, 0, 0, 255, 255, 'fonts/jetbrainsmono.ttf']
+  args.outputs.labels << [10,  60, "ROOM_TYPE: :#{$game.dungeon.curr_room&.type.to_s}", 0, 0, 0, 0, 255, 255, 'fonts/jetbrainsmono.ttf']
+  args.outputs.labels << [10,  90, "ROOM_POS : #{$game.dungeon.curr_room&._coord_str}", 0, 0, 0, 0, 255, 255, 'fonts/jetbrainsmono.ttf']
+  args.outputs.labels << [10, 120, "MAP_SEED : #{$game.dungeon.seed}", 0, 0, 0, 0, 255, 255, 'fonts/jetbrainsmono.ttf']
   map_y = 760
   args.outputs.labels << $game.dungeon.whole_map_str.split("\n").map do |str|
     map_y -= 20
-    [5, map_y, "#{str}", 255, 0, 0, 255]
+    [5, map_y, "#{str}", 0, 0, 255, 0, 0, 255, 'fonts/jetbrainsmono.ttf']
   end
   map_y = 760
   args.outputs.labels << $game.dungeon.room_map_str.split("\n").map do |str|
     map_y -= 20
-    [5, map_y, "#{str}", 0, 0, 255, 255]
+    [5, map_y, "#{str}", 0, 0, 255, 0, 0, 255, 'fonts/jetbrainsmono.ttf']
   end
 end
 

@@ -76,7 +76,7 @@ class DungeonMaster
     generate_item_rooms(room_counts[:item] || 1)
     generate_secret_rooms(room_counts[:secret] || 1)
     # TODO: Assign room variants
-    Dungeon.new(@rooms, layout)
+    Dungeon.new(@rooms, layout, @hex_seed)
   end
 
   # @param [Integer] count
@@ -251,19 +251,22 @@ end
 
 # TODO
 class Dungeon
-  attr_accessor :layout
-  attr_accessor :rooms
-  attr_accessor :coord
-  attr_accessor :sprite
-  attr_accessor :whole_map_str
-  attr_accessor :room_map_str
+  attr_reader :layout
+  attr_reader :rooms
+  attr_reader :coord
+  attr_reader :sprite
+  attr_reader :whole_map_str
+  attr_reader :room_map_str
+  attr_reader :seed
 
   # @param [Array<Room>] rooms
   # @param [Hash] layout
-  def initialize(rooms, layout)
+  # @param [String] seed
+  def initialize(rooms, layout, seed)
     @rooms  = rooms
     @layout = layout
     @coord  = [0, 0]
+    @seed = seed
     update_sprite
   end
 
@@ -324,9 +327,9 @@ class Dungeon
     get_room(*coord)&.ordered_neighbor_dirs&.each { |d| hash_walker = hash_walker[d] }
     path = hash_walker[get_room(*coord)&.ordered_neighbor_dirs&.last]
     # puts path
-    @sprite = [0, 0, 1280, 720, path]
+    @sprite        = [0, 0, 1280, 720, path]
     @whole_map_str = pretty_str
-    @room_map_str = pretty_str(true)
+    @room_map_str  = pretty_str(true)
   end
 
   # @param [Room] room
