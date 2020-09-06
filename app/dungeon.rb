@@ -188,14 +188,15 @@ class DungeonMaster
       end
       tmp    = 0
       cands  = cands.sort_by do |cand|
-        cns   = coord_neighbors(*cand)
-        score = cns.map { |c| get_room(*c) }          # Map each coordinate to its respective room, or nil if unoccupied.
-                   .find_all { |a| a != nil }         # Discard the unoccupied rooms.
-                   .combination(2)                    # Pair up the rooms.
-                   .map { |ab| ab[0].dist_to(ab[1]) } # Get the distance between the rooms in each pair.
-                   .max                               # Get the highest score.
-
-        [score || 0, tmp += 1]
+        [
+            coord_neighbors(*cand)
+                .map { |c| get_room(*c) }          # Map each coordinate to its respective room, or nil if unoccupied.
+                .find_all { |a| a != nil }         # Discard the unoccupied rooms.
+                .combination(2)                    # Pair up the rooms.
+                .map { |ab| ab[0].dist_to(ab[1]) } # Get the distance between the rooms in each pair.
+                .max || 0,                         # Use the highest score if there was at least one pair of rooms, default to a score of 0.
+            tmp += 1
+        ]
       end
       coord  = cands[-1]
       neighs = coord_neighbors(*coord).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
