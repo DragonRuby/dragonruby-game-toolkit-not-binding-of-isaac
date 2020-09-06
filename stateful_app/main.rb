@@ -1,10 +1,10 @@
-require 'app/constants.rb'
-require 'lib/prng.rb'
-require 'lib/xy_vector.rb'
-require 'app/dungeon.rb'
-require 'app/room.rb'
-require 'lib/profiler.rb'
-require 'lib/tests.rb'
+require 'stateful_app/constants.rb'
+require 'stateful_lib/prng.rb'
+require 'stateful_lib/xy_vector.rb'
+require 'stateful_app/dungeon.rb'
+require 'stateful_app/room.rb'
+require 'stateful_lib/profiler.rb'
+require 'stateful_lib/tests.rb'
 
 # puts 'RUNNING TESTS'
 # (1..10).each { |n| Tests.test_dungeon_generation n }
