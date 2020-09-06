@@ -208,6 +208,10 @@ class Game
   # @param [KeySet] keyboard
   # @return [Array<Symbol>]
   def get_move_dir(keyboard)
+    #Necessary for mac as args.inputs.keyboard.key_held.<key> equals nil initially
+    keyboard.w ||= false ; keyboard.a ||= false
+    keyboard.s ||= false ; keyboard.d ||= false
+
     dirs = []
     dirs.push(keyboard.a == keyboard.d ? :none : keyboard.a ? :left : :right)
     dirs.push(keyboard.w == keyboard.s ? :none : keyboard.w ? :up : :down)
@@ -216,6 +220,10 @@ class Game
 
   # @param [GTK::KeyboardKeys] keyboard
   def get_shoot_dir(keyboard)
+    #Necessary for mac as args.inputs.keyboard.key_held.<key> equals nil initially
+    keyboard.up   ||= false ; keyboard.down ||= false
+    keyboard.left ||= false ; keyboard.right ||= false
+
     if keyboard.up == keyboard.down
       if keyboard.left == keyboard.right
         :none
