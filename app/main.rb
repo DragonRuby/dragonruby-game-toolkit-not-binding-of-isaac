@@ -7,7 +7,7 @@ require 'lib/profiler.rb'
 require 'lib/tests.rb'
 
 # puts 'RUNNING TESTS'
-# Tests.test_dungeon_generation
+# (1..10).each { |n| Tests.test_dungeon_generation n }
 
 class Sprite
   attr_sprite

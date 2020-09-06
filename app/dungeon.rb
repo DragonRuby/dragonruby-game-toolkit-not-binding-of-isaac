@@ -101,14 +101,13 @@ class DungeonMaster
 
   # @return [Room] The furthest normal room with a dead end
   def get_longest_dead_end
-    tmp = 0
     # RubyMine thinks this may return nil, but it won't.
     #noinspection RubyYardReturnMatch
     out = @rooms.find_all { |r|
       (r.type == :normal) &&
           r.dead_end? &&
           !(valid_children(r.x, r.y).empty?)
-    }.sort_by { |r| [r.depth, tmp += 1] }.last
+    }.sort_by.with_index { |r, i| [r.depth, i] }.last
     if out == nil
       puts '~~~~~~~~~'
       puts @rooms.find_all { |r| (r.type == :normal) }
@@ -167,6 +166,17 @@ class DungeonMaster
     generate_generic_deadend_room(count, :item)
   end
 
+  # @param [Array<Integer>] candidate The [x,y] coord of the candidate to score
+  # @return [Integer] The candidate's score. Higher is better.
+  def score_secret_room_candidate(candidate)
+    coord_neighbors(*candidate)
+        .map { |c| get_room(*c) } # Map each coordinate to its respective room, or nil if unoccupied.
+        .find_all { |a| a != nil } # Discard the unoccupied rooms.
+        .combination(2) # Pair up the rooms.
+        .map { |ab| ab[0].dist_to(ab[1]) } # Get the distance between the rooms in each pair.
+        .max || 0 # Use the highest score if there was at least one pair of rooms, default to a score of 0.
+  end
+
   # @param [Integer] count The number of secret rooms to generate
   def generate_secret_rooms(count)
     banned_types = {
@@ -177,28 +187,18 @@ class DungeonMaster
     }
 
     cur_num = 0
-    xs      = ((@rooms.map { |r| r.x }.min)..(@rooms.map { |r| r.x }.max))
-    ys      = ((@rooms.map { |r| r.y }.min)..(@rooms.map { |r| r.y }.max))
+    xs      = ((@rooms.map { |r| r.x }.min)..(@rooms.map { |r| r.x }.max)).to_a
+    ys      = ((@rooms.map { |r| r.y }.min)..(@rooms.map { |r| r.y }.max)).to_a
     while cur_num < count
-      cands  = xs.flat_map { |x| ys.map { |y| [x, y] } }.find_all do |xy|
-        get_room(*xy) == nil && 1 <= coord_neighbors(*xy).count do |n|
-          r = get_room(*n)
-          !(r == nil || banned_types[r.type])
-        end
-      end
-      tmp    = 0
-      cands  = cands.sort_by do |cand|
-        [
-            coord_neighbors(*cand)
-                .map { |c| get_room(*c) }          # Map each coordinate to its respective room, or nil if unoccupied.
-                .find_all { |a| a != nil }         # Discard the unoccupied rooms.
-                .combination(2)                    # Pair up the rooms.
-                .map { |ab| ab[0].dist_to(ab[1]) } # Get the distance between the rooms in each pair.
-                .max || 0,                         # Use the highest score if there was at least one pair of rooms, default to a score of 0.
-            tmp += 1
-        ]
-      end
-      coord  = cands[-1]
+      coord = xs.product(ys)
+                .map { |xy| [*xy, get_room(*xy)] }
+                .find_all { |xyr| xyr[2] == nil }
+                .map { |xyr| [(xyr.first 2), coord_neighbors(*(xyr.first 2))] }
+                .map { |xyn| [xyn[0], xyn[1].map { |xy| get_room(*xy) }.count { |r| r != nil && !banned_types.keys.include?(r.type) }] }
+                .find_all { |xyc| xyc[1] >= 1 }
+                .map { |xyc| xyc[0] }
+                .sort_by.with_index { |cand, idx| [score_secret_room_candidate(cand), idx] }
+                .last
       neighs = coord_neighbors(*coord).find_all { |c| get_room(*c) != nil }.map { |c| get_room(*c) }
       raise(RuntimeError, "This should be impossible") if neighs.empty?
       #noinspection RubyYardParamTypeMatch

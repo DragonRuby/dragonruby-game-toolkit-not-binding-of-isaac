@@ -1,13 +1,15 @@
 module Tests
-  def self.test_dungeon_generation
+  def self.test_dungeon_generation n
+    iters = 10
+    srand n**2
+    $gtk.reset n**2
     seed  = "0123456789qwertyuiopasdfghjklzxcvbnm".split('').shuffle.first(8).join('')
     pp    = nil
     time  = 0.0
     count = 0
-    (1..1).each do |_|
-      count += 1
-      srand count
-      $gtk.reset count
+    (1..iters).each do |m|
+      srand m + n**2
+      $gtk.reset m + n**2
       dm   = DungeonMaster.new(seed)
       time += profile('dungeon generation', false) {
         dm.generate(
@@ -24,7 +26,7 @@ module Tests
       pp   ||= dm.pretty_str
       raise(RuntimeError, "Non deterministic dungeon generation detected!") if pp != dm.pretty_str
     end
-    puts "average time to generate: #{(time.fdiv count)} seconds"
+    puts "average time to generate: #{(time.fdiv iters)} seconds"
     puts "seed: " + seed + pp
 
   end
