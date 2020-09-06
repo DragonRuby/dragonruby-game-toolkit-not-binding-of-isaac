@@ -34,12 +34,44 @@ class Sprite
   attr_sprite
 end
 
+# * FIXME: consider using data + functions over classes
+# Why a bullets class when something like the
+# following would be sufficient and is immediately serializable to disk
+# #+begin_src ruby
+#   def new_bullet args, vel_x, vel_y
+#    args.state.bullets << (args.state.new_entity :bullet,
+#                                                 x: args.state.player.x,
+#                                                 y: args.state.player.y,
+#                                                 w: args.state.bullet_size,
+#                                                 h: args.state.bullet_size,
+#                                                 path: args.state.bullet_sprite_path,
+#                                                 vel_x: vel_x,
+#                                                 vel_y: vel_y)
+#   end
+#
+#   def calc_bullets args
+#     args.bullets.each do |b|
+#       b.x += b.vel_x
+#       b.y += b.vel_y
+#     end
+#   end
+#
+#   def render_bullets args
+#     # Note: you can use ~Primitive#anchor_rect~ instead of calculating the
+#     #       offset manually
+#     args.outputs.sprites << args.bullets.map { |b| b.anchor_rect 0.5, 0.5 }
+#   end
+# #+end_src
 class Bullet
   attr_accessor :sprite, :pos, :vel
 
   # @param [XYPair] pos
   # @param [XYPair] vel
   def initialize(pos, vel)
+    # * FIXME: use ~args.state~ over constants.
+    # I generally put everything in ~args.state~ instead of using constants. You want
+    # pretty much the entire game to serialize to disk. Take a look at the 02_collision_02_moving_objects
+    # sample app's ~fiddle~ method.
     trace! if TRACING_ENABLED
     @sprite = Sprite.new
     @sprite.path = BULLET_SPRITE_PATH
@@ -64,6 +96,9 @@ class Bullet
   end
 end
 
+# * FIXME: consider using data + functions over classes
+# Why a Player class when something like the when using ~args.state~ + functions is immediately
+# serializable to disk? See bullets comments above.
 class Player
   attr_accessor :sprites, :pos, :fire_cooldown
   # @param [XYPair] pos
@@ -89,7 +124,7 @@ class Player
     @face_sprite.path = PLAYER_FACE_DOWN_SPRITE_PATH
     @face_sprite.w = PLAYER_SPRITE_W
     @face_sprite.h = PLAYER_SPRITE_H
-    
+
     @pos = pos
     @vel = XYPair.new(0, 0)
     @fire_cooldown = 0
@@ -107,7 +142,7 @@ class Player
     @body_sprite.y = offset.y
     @body_sprite
   end
-  
+
   def face_sprite
     @face_sprite.x = offset.x
     @face_sprite.y = offset.y
@@ -156,7 +191,7 @@ class Player
     @vel.y *= PLAYER_FRICT if direction.y == :none
     @pos += @vel
 
-    
+
     #turn the body the way we wish to move
     @body_sprite.path = PLAYER_BODY_Y_SPRITE_PATH if direction.y == :up
     @body_sprite.path = PLAYER_BODY_Y_SPRITE_PATH if direction.y == :down
@@ -208,8 +243,16 @@ class Game
     bullet = player.shoot get_shoot_dir args.inputs.keyboard.key_held
     @bullets << bullet if bullet
     # Todo: Find a more efficient method.
+    # * FIXME
+    # Short had for ~@bullets.each { |b| b.tick }~ is ~@bulets.each(&:tick)~
+    # Consider ~Array#reject~ instead of ~Array#find_all~ since you are removing/rejecting bullets that are not on the screen
     @bullets = @bullets.each { |b| b.tick }
-                   .find_all { |b| b.pos.x.between?(0 - DSPWN_RNG, 1280 + DSPWN_RNG) && b.pos.y.between?(0 - DSPWN_RNG, 720 + DSPWN_RNG) } # Check if bullet is on-screen
+                       .find_all do |b|
+                         # consider args.grid.intersect_rect? b.rect
+                         # take a look at http://fiddle.dragonruby.org/index.html?tutorial=tutorial-traveling-at-light-speed.html
+                         b.pos.x.between?(0 - DSPWN_RNG, 1280 + DSPWN_RNG) &&
+                         b.pos.y.between?(0 - DSPWN_RNG, 720 + DSPWN_RNG)
+                       end # Check if bullet is on-screen
   end
 end
 
@@ -218,6 +261,7 @@ $game = Game.new
 def tick(args)
   $game.tick args
   args.outputs.background_color = [128, 128, 128]
+  # note don't use static sprites unless you're seeing a performance issue
   args.outputs.sprites << $game.player.body_sprite #Todo: static sprites?
   args.outputs.sprites << $game.player.head_sprite #Todo: static sprites?
   args.outputs.sprites << $game.player.face_sprite #Todo: static sprites?
