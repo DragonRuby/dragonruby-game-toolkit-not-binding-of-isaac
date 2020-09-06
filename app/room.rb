@@ -120,6 +120,10 @@ class Room
     }
   end
 
+  def ordered_neighbor_dirs
+    neighbors.keys.sort_by{ |k| k.to_s}
+  end
+
   def directional_char
     one_neigh = {
         E: '╞',

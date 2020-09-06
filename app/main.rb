@@ -6,8 +6,8 @@ require 'app/room.rb'
 require 'lib/profiler.rb'
 require 'lib/tests.rb'
 
-puts 'RUNNING TESTS'
-Tests.test_dungeon_generation
+# puts 'RUNNING TESTS'
+# Tests.test_dungeon_generation
 
 class Sprite
   attr_sprite
@@ -62,6 +62,8 @@ class Player
   attr_accessor :sprites, :fire_cooldown
   #@type [XYVector]
   attr_accessor :pos
+  #@type [XYVector]
+  attr_accessor :vel
 
 
   # @param [XYVector] pos
@@ -195,7 +197,7 @@ class Player
 end
 
 class Game
-  attr_accessor :player, :bullets
+  attr_accessor :player, :bullets, :dungeon
 
   def initialize
     trace! if TRACING_ENABLED
@@ -203,6 +205,19 @@ class Game
     @player = Player.new XYVector.new(640.0, 360.0)
 
     @bullets = []
+
+    @dungeon_master = DungeonMaster.new('106dqjno')
+    @dungeon        = @dungeon_master.generate(
+        {
+            normal:       40,
+            boss:         2,
+            super_secret: 1,
+            shop:         2,
+            item:         2,
+            secret:       5
+        }
+    )
+    puts @dungeon.pretty_str
   end
 
 
@@ -210,8 +225,8 @@ class Game
   # @return [Array<Symbol>]
   def get_move_dir(keyboard)
     #Necessary for mac as args.inputs.keyboard.key_held.<key> equals nil initially
-    keyboard.w ||= false ; keyboard.a ||= false
-    keyboard.s ||= false ; keyboard.d ||= false
+    keyboard.w ||= false; keyboard.a ||= false
+    keyboard.s ||= false; keyboard.d ||= false
 
     dirs = []
     dirs.push(keyboard.a == keyboard.d ? :none : keyboard.a ? :left : :right)
@@ -222,8 +237,8 @@ class Game
   # @param [GTK::KeyboardKeys] keyboard
   def get_shoot_dir(keyboard)
     #Necessary for mac as args.inputs.keyboard.key_held.<key> equals nil initially
-    keyboard.up   ||= false ; keyboard.down ||= false
-    keyboard.left ||= false ; keyboard.right ||= false
+    keyboard.up   ||= false; keyboard.down ||= false
+    keyboard.left ||= false; keyboard.right ||= false
 
     if keyboard.up == keyboard.down
       if keyboard.left == keyboard.right
@@ -236,11 +251,53 @@ class Game
     end
   end
 
+  def update_room
+    buffer = 16.0
+    if player.pos.x < buffer
+      if dungeon.curr_room&.neighbors[:W]
+        player.pos.x = 1280.0 - (buffer*1.5)
+        dungeon.set_room dungeon.curr_room&.neighbors[:W]
+        @bullets = []
+      else
+        player.pos.x = buffer
+        player.vel.x = 0.0
+      end
+    elsif player.pos.x > (1280.0 - buffer)
+      if dungeon.curr_room&.neighbors[:E]
+        player.pos.x = buffer*1.5
+        dungeon.set_room dungeon.curr_room&.neighbors[:E]
+        @bullets = []
+      else
+        player.pos.x = 1280.0 - buffer
+        player.vel.x = 0.0
+      end
+    elsif player.pos.y < buffer
+      if dungeon.curr_room&.neighbors[:S]
+        player.pos.y = 720.0 - (buffer*1.5)
+        dungeon.set_room dungeon.curr_room&.neighbors[:S]
+        @bullets = []
+      else
+        player.pos.y = buffer
+        player.vel.y = 0.0
+      end
+    elsif player.pos.y > (720.0 - buffer)
+      if dungeon.curr_room&.neighbors[:N]
+        player.pos.y = buffer*1.5
+        dungeon.set_room dungeon.curr_room&.neighbors[:N]
+        @bullets = []
+      else
+        player.pos.y = (720.0 - buffer)
+        player.vel.y = 0.0
+      end
+    end
+  end
+
   # @param [Args] args
   def tick(args)
     player.move(get_move_dir(args.inputs.keyboard.key_held))
     bullet = player.shoot get_shoot_dir args.inputs.keyboard.key_held
     @bullets << bullet if bullet
+    update_room
     # Todo: Find a more efficient method.
     @bullets = @bullets.each { |b| b.tick }
                        .find_all { |b| b.pos.x.between?(0 - BULLET_DESPAWN_RANGE, 1280 + BULLET_DESPAWN_RANGE) && b.pos.y.between?(0 - BULLET_DESPAWN_RANGE, 720 + BULLET_DESPAWN_RANGE) } # Check if bullet is on-screen
@@ -253,9 +310,21 @@ $sprite_const = PLAYER_SPRITES
 # @param [Args] args
 def tick(args)
   $game.tick args
-  args.outputs.background_color = [128, 128, 128]
+  args.outputs.sprites << $game.dungeon.sprite
   args.outputs.sprites << $game.player.offset_sprites
   args.outputs.sprites << $game.bullets.map { |b| b.sprite } # Todo: static sprites?
   #noinspection RubyResolve
-  args.outputs.labels << [10, 30, "FPS: #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
+  args.outputs.labels << [10,  30, "FPS      : #{args.gtk.current_framerate.to_s.to_i}", 255, 0, 0, 255]
+  args.outputs.labels << [10,  60, "ROOM_TYPE: :#{$game.dungeon.curr_room&.type.to_s}", 255, 0, 0, 255]
+  args.outputs.labels << [10,  90, "ROOM_POS : #{$game.dungeon.curr_room&._coord_str}", 255, 0, 0, 255]
+  map_y = 760
+  args.outputs.labels << $game.dungeon.pretty_str.split("\n").map do |str|
+    map_y -= 20
+    [5, map_y, "#{str}", 255, 0, 0, 255]
+  end
+  map_y = 760
+  args.outputs.labels << $game.dungeon.pretty_str(true).split("\n").map do |str|
+    map_y -= 20
+    [5, map_y, "#{str}", 0, 0, 255, 255]
+  end
 end

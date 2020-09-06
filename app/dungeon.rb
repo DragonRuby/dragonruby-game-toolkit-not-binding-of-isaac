@@ -76,6 +76,7 @@ class DungeonMaster
     generate_item_rooms(room_counts[:item] || 1)
     generate_secret_rooms(room_counts[:secret] || 1)
     # TODO: Assign room variants
+    Dungeon.new(@rooms, layout)
   end
 
   # @param [Integer] count
@@ -251,9 +252,82 @@ end
 # TODO
 class Dungeon
   attr_accessor :layout
+  attr_accessor :rooms
+  attr_accessor :coord
+  attr_accessor :sprite
 
-  # @param [Hash{Pair => Room}] rooms
-  def initialize(rooms)
-    @layout = rooms
+  # @param [Array<Room>] rooms
+  # @param [Hash] layout
+  def initialize(rooms, layout)
+    @rooms  = rooms
+    @layout = layout
+    @coord  = [0, 0]
+    update_sprite
+  end
+
+  # @param [Integer] x
+  # @param [Integer] y
+  # @return [Room]
+  def get_room(x, y)
+    return nil unless @layout.has_key? y
+    @layout[y][x]
+  end
+
+  def curr_room
+    get_room(*coord)
+  end
+
+  # @param [TrueClass, FalseClass] curr_only
+  def pretty_str(curr_only = false)
+    char_map                = Hash.new('#')
+    char_map[:spawn]        = '█'
+    char_map[:normal]       = 'o'
+    char_map[:boss]         = 'X'
+    char_map[:item]         = 'I'
+    char_map[:shop]         = '$'
+    char_map[:super_secret] = '¿'
+    char_map[:secret]       = '?'
+
+    xs  = ((@rooms.map { |r| r.x }.min - 1)..(@rooms.map { |r| r.x }.max + 1))
+    ys  = ((@rooms.map { |r| r.y }.min - 1)..(@rooms.map { |r| r.y }.max + 1))
+    str = "\n╔" + xs.map { |_| '═' }.join('') + "╗\n"
+    str = "\n " + xs.map { |_| ' ' }.join('') + " \n" if curr_only
+    ys.to_a.reverse.each do |y|
+      str += curr_only ? ' ' : '║'
+      xs.each do |x|
+        room = get_room(x, y)
+        if !curr_only || room == curr_room
+          if room == nil
+            str += " "
+          elsif room.type == :normal
+            str += room.directional_char
+          else
+            str += char_map[room.type]
+          end
+        else
+          str += " "
+        end
+      end
+      str += curr_only ? " \n" : "║\n"
+    end
+    if curr_only
+      str + ' ' + xs.map { |_| ' ' }.join('') + ' '
+    else
+      str + '╚' + xs.map { |_| '═' }.join('') + '╝'
+    end
+  end
+
+  def update_sprite
+    hash_walker = ROOM_SPRITES
+    get_room(*coord)&.ordered_neighbor_dirs&.each { |d| hash_walker = hash_walker[d] }
+    path = hash_walker[get_room(*coord)&.ordered_neighbor_dirs&.last]
+    # puts path
+    @sprite = [0, 0, 1280, 720, path]
+  end
+
+  # @param [Room] room
+  def set_room(room)
+    @coord = [room.x, room.y]
+    update_sprite
   end
 end
