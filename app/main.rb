@@ -24,6 +24,10 @@ class Sprite
   def path=(new_path)
     @path = new_path if @path != new_path
   end
+
+  def rect
+       [@x, @y, @w, @h]
+  end
 end
 
 class Bullet
