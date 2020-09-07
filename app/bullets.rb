@@ -37,7 +37,21 @@ module Bullets
     adjustment_vector = cos_theta > 0 ? parallel_vel : {x: 0, y: 0}
     momentum_vector   = XYVector::scale(XYVector::add(perpendicular_vel, adjustment_vector), player[:attrs][:physics][:base_bullet_momentum])
     bullet_true_vel   = XYVector::add(momentum_vector, base_vel)
-    pos = player[:pos]
+    eye_offset        = {
+        true:  {
+            up:    {x: 12.0, y: 64.0},
+            down:  {x: 12.0, y: 44.0},
+            left:  {x: -16.0, y: 36.0},
+            right: {x: 16.0, y: 60.0},
+        },
+        false: {
+            up:    {x: -12.0, y: 64.0},
+            down:  {x: -12.0, y: 44.0},
+            left:  {x: -16.0, y: 60.0},
+            right: {x: 16.0, y: 36.0},
+        },
+    }
+    pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][Player::shoot_direction(input)])
     [
         Bullet::spawn(pos, bullet_true_vel, {
             sprite: {
@@ -47,12 +61,7 @@ module Bullets
                 path:       'sprites/bullets/standard.png',
                 angle_snap: 10.0
             },
-            bbox:   [
-                        pos[:x],
-                        pos[:y],
-                        32,
-                        32
-                    ]
+            bbox:   [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5)
         })
     ]
   end

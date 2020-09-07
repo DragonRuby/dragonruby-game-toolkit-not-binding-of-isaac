@@ -43,7 +43,7 @@ module Player
                 base_accel:           0.5,
                 base_friction:        0.85,
                 base_bullet_momentum: 0.66,
-                bbox: [640,360,64,126]
+                bbox: [640,360,64,88].anchor_rect(0.5, 0)
             },
             attack:      {
                 base_cooldown:   12,
@@ -75,7 +75,7 @@ module Player
   # @param [Hash] player
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Player::renderables(player)
-    debug_outline = [{
+    debug_outline = $DEBUG ? [{
          x:                player[:attrs][:physics][:bbox][0],
          y:                player[:attrs][:physics][:bbox][1],
          w:                player[:attrs][:physics][:bbox][2],
@@ -85,7 +85,7 @@ module Player
          b:                0,
          a:                255,
          primitive_marker: :border
-     }]
+     }] : []
     debug_outline.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
   end
 
@@ -188,7 +188,7 @@ module Player
             base_accel:           player[:attrs][:physics][:base_accel],
             base_friction:        player[:attrs][:physics][:base_friction],
             base_bullet_momentum: player[:attrs][:physics][:base_bullet_momentum],
-            bbox: [new_pos[:x],new_pos[:y],player[:attrs][:physics][:bbox][2],player[:attrs][:physics][:bbox][3]]
+            bbox: [new_pos[:x],new_pos[:y],player[:attrs][:physics][:bbox][2],player[:attrs][:physics][:bbox][3]].anchor_rect(0.5, 0.05)
         },
         attack:      player[:attrs][:attack]
     }
