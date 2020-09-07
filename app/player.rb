@@ -70,7 +70,7 @@ module Player
   end
 
   # @param [Hash] player
-  # @return [Array] An array of sprites, in render order.
+  # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def self.renderables(player)
     player[:facing].map { |part, direction| Player.part_sprite(player, part, direction) }
   end
