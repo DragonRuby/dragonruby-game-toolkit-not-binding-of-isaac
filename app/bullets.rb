@@ -22,30 +22,37 @@ module Bullets
   # @param [Hash] input
   def Bullets::spawn_new_player_bullets(player, input)
     return [] if (player[:attack][:cooldown] != 0) || (Player::shoot_direction(input) == nil)
-    unit_v  = {
+    unit_v            = {
         up:    {x: 0.0, y: 1.0},
         down:  {x: 0.0, y: -1.0},
         left:  {x: -1.0, y: 0.0},
         right: {x: 1.0, y: 0.0},
     }
-    base_vel = XYVector::scale(unit_v[Player::shoot_direction(input)], player[:attrs][:attack][:base_shot_speed])
+    base_vel          = XYVector::scale(unit_v[Player::shoot_direction(input)], player[:attrs][:attack][:base_shot_speed])
     a                 = player[:vel]
     b                 = base_vel
     cos_theta         = (XYVector::dot(a, b) / (XYVector::abs(a) * XYVector::abs(b)))
     parallel_vel      = XYVector::scale(b, (XYVector::dot(a, b) / XYVector::dot(b, b)))
     perpendicular_vel = XYVector::sub(a, parallel_vel)
-    adjustment_vector = cos_theta > 0 ? parallel_vel : {x:0, y:0}
+    adjustment_vector = cos_theta > 0 ? parallel_vel : {x: 0, y: 0}
     momentum_vector   = XYVector::scale(XYVector::add(perpendicular_vel, adjustment_vector), player[:attrs][:physics][:base_bullet_momentum])
     bullet_true_vel   = XYVector::add(momentum_vector, base_vel)
+    pos = player[:pos]
     [
-        Bullet::spawn(player[:pos], bullet_true_vel, {
+        Bullet::spawn(pos, bullet_true_vel, {
             sprite: {
                 #TODO: Put magic values somewhere better
-                w: 32,
-                h: 32,
-                path: 'sprites/bullets/standard.png',
+                w:          32,
+                h:          32,
+                path:       'sprites/bullets/standard.png',
                 angle_snap: 10.0
-            }
+            },
+            bbox:   [
+                        pos[:x],
+                        pos[:y],
+                        32,
+                        32
+                    ]
         })
     ]
   end

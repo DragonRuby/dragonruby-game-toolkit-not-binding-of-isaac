@@ -30,6 +30,7 @@ module Game
   def Game::tick(args)
     args.state.game               ||= Game::initial_state
     args.outputs.background_color = [128, 128, 128]
+    args.outputs.labels << [10, 30, "FPS      : #{args.gtk.current_framerate.to_s.to_i}", 0, 0, 255, 0, 0, 255, 'fonts/jetbrainsmono.ttf']
     args.outputs.primitives << Game::renderables(args.state.game)
     input           = [InputMapper::process(args.inputs, args.state.game[:controls]), args.state.game]
     output          = Game::next_state(*input)

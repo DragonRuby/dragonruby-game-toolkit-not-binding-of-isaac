@@ -42,10 +42,11 @@ module Player
                 base_speed:           5.0,
                 base_accel:           0.5,
                 base_friction:        0.85,
-                base_bullet_momentum: 0.66
+                base_bullet_momentum: 0.66,
+                bbox: [640,360,64,126]
             },
             attack:      {
-                base_cooldown: 12,
+                base_cooldown:   12,
                 base_shot_speed: 8.0
             }
         }
@@ -60,7 +61,7 @@ module Player
     attack  = Player::next_attack(game[:player], input)
     facing  = Player::next_facing(input)
     sprites = game[:player][:sprites] #Const for now
-    attrs   = game[:player][:attrs] #Const for now
+    attrs   = Player::next_attrs(game[:player], pos)
     {
         pos:     pos,
         vel:     vel,
@@ -74,7 +75,18 @@ module Player
   # @param [Hash] player
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Player::renderables(player)
-    player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) }
+    debug_outline = [{
+         x:                player[:attrs][:physics][:bbox][0],
+         y:                player[:attrs][:physics][:bbox][1],
+         w:                player[:attrs][:physics][:bbox][2],
+         h:                player[:attrs][:physics][:bbox][3],
+         r:                0,
+         g:                255,
+         b:                0,
+         a:                255,
+         primitive_marker: :border
+     }]
+    debug_outline.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
   end
 
   # @param [Hash] player
@@ -111,7 +123,7 @@ module Player
         cooldown: if player[:attack][:cooldown] == 0 && input[:shoot].values.any?
                     player[:attrs][:attack][:base_cooldown]
                   else
-                    (player[:attack][:cooldown]-1).greater(0)
+                    (player[:attack][:cooldown] - 1).greater(0)
                   end,
         left_eye: if player[:attack][:cooldown] == 0 && input[:shoot].values.any?
                     !player[:attack][:left_eye]
@@ -168,4 +180,17 @@ module Player
     }.anchor_rect(-0.5, 0.0)
   end
 
+  def Player::next_attrs(player, new_pos)
+    {
+        render_size: player[:attrs][:render_size],
+        physics:     {
+            base_speed:           player[:attrs][:physics][:base_speed],
+            base_accel:           player[:attrs][:physics][:base_accel],
+            base_friction:        player[:attrs][:physics][:base_friction],
+            base_bullet_momentum: player[:attrs][:physics][:base_bullet_momentum],
+            bbox: [new_pos[:x],new_pos[:y],player[:attrs][:physics][:bbox][2],player[:attrs][:physics][:bbox][3]]
+        },
+        attack:      player[:attrs][:attack]
+    }
+  end
 end
