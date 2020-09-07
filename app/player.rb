@@ -53,13 +53,13 @@ module Player
     }
   end
 
-  # @param [Hash] input
+  # @param [Hash] player_intent
   # @param [Hash] game
-  def Player::next_state(input, game)
+  def Player::next_state(player_intent, game)
     pos     = Player::next_pos(game[:player])
-    vel     = Player::next_vel(game[:player], input)
-    attack  = Player::next_attack(game[:player], input)
-    facing  = Player::next_facing(input)
+    vel     = Player::next_vel(game[:player], player_intent)
+    attack  = Player::next_attack(game[:player], player_intent)
+    facing  = Player::next_facing(player_intent)
     sprites = game[:player][:sprites] #Const for now
     attrs   = Player::next_attrs(game[:player], pos)
     {
@@ -96,36 +96,36 @@ module Player
   end
 
   # @param [Hash] player
-  # @param [Hash] input
+  # @param [Hash] player_intent
   # @return [Hash{Symbol->Float}] vel
-  def Player::next_vel(player, input)
+  def Player::next_vel(player, player_intent)
     unit_v  = {
         up:    {x: 0.0, y: 1.0},
         down:  {x: 0.0, y: -1.0},
         left:  {x: -1.0, y: 0.0},
         right: {x: 1.0, y: 0.0},
     }
-    raw_vel = input[:walk].map { |dir, active| XYVector.scale(unit_v[dir], (active ? player[:attrs][:physics][:base_accel] : 0.0)) }
+    raw_vel = player_intent[:walk].map { |dir, active| XYVector.scale(unit_v[dir], (active ? player[:attrs][:physics][:base_accel] : 0.0)) }
                           .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
     limiter = XYVector.abs(raw_vel).fdiv(player[:attrs][:physics][:base_speed]).greater(1.0)
     lim_vel = XYVector.div(raw_vel, limiter)
     {
-        x: lim_vel[:x] * ((input[:walk][:left] || input[:walk][:right]) ? 1.0 : player[:attrs][:physics][:base_friction]),
-        y: lim_vel[:y] * ((input[:walk][:up] || input[:walk][:down]) ? 1.0 : player[:attrs][:physics][:base_friction])
+        x: lim_vel[:x] * ((player_intent[:walk][:left] ^ player_intent[:walk][:right]) ? 1.0 : player[:attrs][:physics][:base_friction]),
+        y: lim_vel[:y] * ((player_intent[:walk][:up] ^ player_intent[:walk][:down]) ? 1.0 : player[:attrs][:physics][:base_friction])
     }
 
   end
 
   # @param [Hash] player
-  # @param [Hash{Symbol=>Hash}] input
-  def Player::next_attack(player, input)
+  # @param [Hash{Symbol=>Hash}] player_intent
+  def Player::next_attack(player, player_intent)
     {
-        cooldown: if player[:attack][:cooldown] == 0 && input[:shoot].values.any?
+        cooldown: if player[:attack][:cooldown] == 0 && player_intent[:shoot].values.any?
                     player[:attrs][:attack][:base_cooldown]
                   else
                     (player[:attack][:cooldown] - 1).greater(0)
                   end,
-        left_eye: if player[:attack][:cooldown] == 0 && input[:shoot].values.any?
+        left_eye: if player[:attack][:cooldown] == 0 && player_intent[:shoot].values.any?
                     !player[:attack][:left_eye]
                   else
                     player[:attack][:left_eye]
@@ -133,33 +133,34 @@ module Player
     }
   end
 
-  # @param [Hash] input
-  def Player::shoot_direction(input)
-    if input[:shoot][:up] == input[:shoot][:down]
-      if input[:shoot][:left] == input[:shoot][:right]
+  # @param [Hash] player_intent
+  def Player::shoot_direction(player_intent)
+    if player_intent[:shoot][:up] == player_intent[:shoot][:down]
+      if player_intent[:shoot][:left] == player_intent[:shoot][:right]
         nil
       else
-        input[:shoot][:left] ? :left : :right
+        player_intent[:shoot][:left] ? :left : :right
       end
     else
-      input[:shoot][:up] ? :up : :down
+      player_intent[:shoot][:up] ? :up : :down
     end
   end
 
-  def Player::move_direction(input)
-    if input[:walk][:up] || input[:walk][:down]
-      input[:walk][:up] ? :up : :down
-    elsif input[:walk][:right] || input[:walk][:left]
-      input[:walk][:right] ? :right : :left
+  # @param [Hash] player_intent
+  def Player::move_direction(player_intent)
+    if player_intent[:walk][:up] != player_intent[:walk][:down]
+      player_intent[:walk][:up] ? :up : :down
+    elsif player_intent[:walk][:right] != player_intent[:walk][:left]
+      player_intent[:walk][:right] ? :right : :left
     else
       nil
     end
   end
 
-  # @param [Hash{Symbol=>Hash}] input
-  def Player::next_facing(input)
-    shoot_dir = Player::shoot_direction(input)
-    move_dir  = Player::move_direction(input)
+  # @param [Hash{Symbol=>Hash}] player_intent
+  def Player::next_facing(player_intent)
+    shoot_dir = Player::shoot_direction(player_intent)
+    move_dir  = Player::move_direction(player_intent)
     {
         body: move_dir || :down,
         head: shoot_dir || move_dir || :down,
@@ -180,6 +181,8 @@ module Player
     }.anchor_rect(-0.5, 0.0)
   end
 
+  # @param [Hash] player
+  # @param [Hash] new_pos
   def Player::next_attrs(player, new_pos)
     {
         render_size: player[:attrs][:render_size],

@@ -1,9 +1,9 @@
 module Game
   def Game::initial_state
     {
-        player:   Player::initial_state,
-        bullets:  Bullets::initial_state,
-        controls: InputMapper::controls
+        player:  Player::initial_state,
+        bullets: Bullets::initial_state,
+        keymap:  Controller::controls
     }
   end
 
@@ -13,27 +13,30 @@ module Game
     [
         Player::renderables(game[:player]),
         Bullets::renderables(game[:bullets]),
+        [10, 30, "FPS : #{$gtk.current_framerate.to_s.to_i}", 255, 0, 0].label
     ].reduce(&:append)
   end
 
-  # @param [Hash] input
+  # @param [Hash] player_intent
   # @param [Hash] game
-  def Game::next_state(input, game)
+  def Game::next_state(player_intent, game)
     {
-        player:   Player::next_state(input, game),
-        bullets:  Bullets::next_state(input, game),
-        controls: game[:controls], #TODO: Allow player to rebind controls?
+        player:  Player::next_state(player_intent, game),
+        bullets: Bullets::next_state(player_intent, game),
+        keymap:  game[:keymap], #TODO: Allow player to rebind controls?
     }
   end
 
   # @param [GTK::Args] args
   def Game::tick(args)
-    args.state.game               ||= Game::initial_state
+    args.state.game ||= Game::initial_state
+    prev_state      = args.state.game
+
     args.outputs.background_color = [128, 128, 128]
-    args.outputs.labels << [10, 30, "FPS      : #{args.gtk.current_framerate.to_s.to_i}", 0, 0, 255, 0, 0, 255, 'fonts/jetbrainsmono.ttf']
-    args.outputs.primitives << Game::renderables(args.state.game)
-    input           = [InputMapper::process(args.inputs, args.state.game[:controls]), args.state.game]
-    output          = Game::next_state(*input)
-    args.state.game = output
+    args.outputs.primitives << Game::renderables(prev_state)
+
+    player_intent = Controller::get_player_intent(args.inputs, args.state.game[:keymap])
+
+    args.state.game = Game::next_state(player_intent, prev_state)
   end
 end
