@@ -328,6 +328,15 @@ class Dungeon
     @room_map_str  = pretty_str(true)
   end
 
+  def update args
+       if curr_room.adversary then curr_room.adversary.update args end
+  end
+
+  def render args
+       args.outputs.sprites << @sprite
+       if curr_room.adversary then curr_room.adversary.render args end
+  end
+
   # @param [Room] room
   def set_room(room)
     @coord = [room.x, room.y]

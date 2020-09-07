@@ -45,6 +45,8 @@ class Room
   # @type [Symbol]
   attr_reader :parent_direction
 
+  attr_reader :adversary
+
   # @param [Symbol] type
   # @param [Room] parent
   # @param [Integer] x
@@ -56,12 +58,16 @@ class Room
     @y         = y
     @depth     = parent == nil ? 0 : 1 + parent.depth
     @neighbors = {}
+    @adversary = nil
     if parent == nil
       @parent_direction = nil
     else
       @parent_direction = OFFSET_TO_DIR[parent.x - x][parent.y - y]
       add_neighbor(parent)
       parent.add_neighbor(self)
+    end
+    if (type == :normal)
+         @adversary = Adversary.new
     end
   end
 
