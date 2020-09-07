@@ -1,6 +1,6 @@
 module Player
   # @return [Hash]
-  def self.initial_state
+  def Player::initial_state
     {
         pos:     {x: 640.0, y: 360.0},
         vel:     {x: 0.0, y: 0.0},
@@ -39,12 +39,14 @@ module Player
                 h: 128
             },
             physics:     {
-                base_speed: 5.0,
-                base_accel: 0.5,
-                base_frict: 0.85
+                base_speed:           5.0,
+                base_accel:           0.5,
+                base_friction:        0.85,
+                base_bullet_momentum: 0.66
             },
             attack:      {
-                base_cooldown: 12
+                base_cooldown: 12,
+                base_shot_speed: 8.0
             }
         }
     }
@@ -52,11 +54,11 @@ module Player
 
   # @param [Hash] input
   # @param [Hash] game
-  def self.next_state(input, game)
-    pos     = Player.next_pos(game[:player])
-    vel     = Player.next_vel(game[:player], input)
-    attack  = Player.next_attack(game[:player], input)
-    facing  = Player.next_facing(input)
+  def Player::next_state(input, game)
+    pos     = Player::next_pos(game[:player])
+    vel     = Player::next_vel(game[:player], input)
+    attack  = Player::next_attack(game[:player], input)
+    facing  = Player::next_facing(input)
     sprites = game[:player][:sprites] #Const for now
     attrs   = game[:player][:attrs] #Const for now
     {
@@ -71,47 +73,45 @@ module Player
 
   # @param [Hash] player
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
-  def self.renderables(player)
-    player[:facing].map { |part, direction| Player.part_sprite(player, part, direction) }
+  def Player::renderables(player)
+    player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) }
   end
-
-  private
 
   # @param [Hash] player
   # @return [Hash{Symbol->Float}] pos
-  def self.next_pos(player)
+  def Player::next_pos(player)
     XYVector.add(player[:pos], player[:vel])
   end
 
   # @param [Hash] player
   # @param [Hash] input
   # @return [Hash{Symbol->Float}] vel
-  def self.next_vel(player, input)
+  def Player::next_vel(player, input)
     unit_v  = {
         up:    {x: 0.0, y: 1.0},
         down:  {x: 0.0, y: -1.0},
         left:  {x: -1.0, y: 0.0},
         right: {x: 1.0, y: 0.0},
     }
-    raw_vel = input[:walk].map { |dir, active| XYVector.mul(unit_v[dir], (active ? player[:attrs][:physics][:base_accel] : 0.0)) }
+    raw_vel = input[:walk].map { |dir, active| XYVector.scale(unit_v[dir], (active ? player[:attrs][:physics][:base_accel] : 0.0)) }
                           .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
     limiter = XYVector.abs(raw_vel).fdiv(player[:attrs][:physics][:base_speed]).greater(1.0)
     lim_vel = XYVector.div(raw_vel, limiter)
     {
-        x: lim_vel[:x] * ((input[:walk][:left] || input[:walk][:right]) ? 1.0 : player[:attrs][:physics][:base_frict]),
-        y: lim_vel[:y] * ((input[:walk][:up] || input[:walk][:down]) ? 1.0 : player[:attrs][:physics][:base_frict])
+        x: lim_vel[:x] * ((input[:walk][:left] || input[:walk][:right]) ? 1.0 : player[:attrs][:physics][:base_friction]),
+        y: lim_vel[:y] * ((input[:walk][:up] || input[:walk][:down]) ? 1.0 : player[:attrs][:physics][:base_friction])
     }
 
   end
 
   # @param [Hash] player
   # @param [Hash{Symbol=>Hash}] input
-  def self.next_attack(player, input)
+  def Player::next_attack(player, input)
     {
         cooldown: if player[:attack][:cooldown] == 0 && input[:shoot].values.any?
                     player[:attrs][:attack][:base_cooldown]
                   else
-                    player[:attack][:cooldown].greater(0)
+                    (player[:attack][:cooldown]-1).greater(0)
                   end,
         left_eye: if player[:attack][:cooldown] == 0 && input[:shoot].values.any?
                     !player[:attack][:left_eye]
@@ -121,24 +121,33 @@ module Player
     }
   end
 
+  # @param [Hash] input
+  def Player::shoot_direction(input)
+    if input[:shoot][:up] == input[:shoot][:down]
+      if input[:shoot][:left] == input[:shoot][:right]
+        nil
+      else
+        input[:shoot][:left] ? :left : :right
+      end
+    else
+      input[:shoot][:up] ? :up : :down
+    end
+  end
+
+  def Player::move_direction(input)
+    if input[:walk][:up] || input[:walk][:down]
+      input[:walk][:up] ? :up : :down
+    elsif input[:walk][:right] || input[:walk][:left]
+      input[:walk][:right] ? :right : :left
+    else
+      nil
+    end
+  end
+
   # @param [Hash{Symbol=>Hash}] input
-  def self.next_facing(input)
-    shoot_dir = if input[:shoot][:up] == input[:shoot][:down]
-                  if input[:shoot][:left] == input[:shoot][:right]
-                    nil
-                  else
-                    input[:shoot][:left] ? :left : :right
-                  end
-                else
-                  input[:shoot][:up] ? :up : :down
-                end
-    move_dir  = if input[:walk][:up] || input[:walk][:down]
-                  input[:walk][:up] ? :up : :down
-                elsif input[:walk][:right] || input[:walk][:left]
-                  input[:walk][:right] ? :right : :left
-                else
-                  nil
-                end
+  def Player::next_facing(input)
+    shoot_dir = Player::shoot_direction(input)
+    move_dir  = Player::move_direction(input)
     {
         body: move_dir || :down,
         head: shoot_dir || move_dir || :down,
@@ -149,7 +158,7 @@ module Player
   # @param [Hash] player
   # @param [Symbol] part The body part to build a sprite for
   # @param [Symbol] direction The direction the body part is facing
-  def self.part_sprite(player, part, direction)
+  def Player::part_sprite(player, part, direction)
     {
         x:    player[:pos][:x],
         y:    player[:pos][:y],
