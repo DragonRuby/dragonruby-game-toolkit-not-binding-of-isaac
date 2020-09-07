@@ -50,6 +50,33 @@ module Player
     }
   end
 
+  # @param [Hash] input
+  # @param [Hash] game
+  def self.next_state(input, game)
+    pos     = Player.next_pos(game[:player])
+    vel     = Player.next_vel(game[:player], input)
+    attack  = Player.next_attack(game[:player], input)
+    facing  = Player.next_facing(input)
+    sprites = game[:player][:sprites] #Const for now
+    attrs   = game[:player][:attrs] #Const for now
+    {
+        pos:     pos,
+        vel:     vel,
+        attack:  attack,
+        facing:  facing,
+        sprites: sprites,
+        attrs:   attrs
+    }
+  end
+
+  # @param [Hash] player
+  # @return [Array] An array of sprites, in render order.
+  def self.renderables(player)
+    player[:facing].map { |part, direction| Player.part_sprite(player, part, direction) }
+  end
+
+  private
+
   # @param [Hash] player
   # @return [Hash{Symbol->Float}] pos
   def self.next_pos(player)
@@ -117,31 +144,6 @@ module Player
         head: shoot_dir || move_dir || :down,
         face: shoot_dir || move_dir || :down,
     }
-  end
-
-  # @param [Hash] input
-  # @param [Hash] game
-  def self.next_state(input, game)
-    pos     = Player.next_pos(game[:player])
-    vel     = Player.next_vel(game[:player], input)
-    attack  = Player.next_attack(game[:player], input)
-    facing  = Player.next_facing(input)
-    sprites = game[:player][:sprites] #Const for now
-    attrs   = game[:player][:attrs] #Const for now
-    {
-        pos:     pos,
-        vel:     vel,
-        attack:  attack,
-        facing:  facing,
-        sprites: sprites,
-        attrs:   attrs
-    }
-  end
-
-  # @param [Hash] player
-  # @return [Array] An array of sprites, in render order.
-  def self.renderables(player)
-    player[:facing].map { |part, direction| Player.part_sprite(player, part, direction) }
   end
 
   # @param [Hash] player
