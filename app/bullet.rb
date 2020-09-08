@@ -26,16 +26,16 @@ module Bullet
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def self::renderables(bullet)
     debug_outline = $DEBUG ? [{
-                         x:                bullet[:attrs][:bbox][0],
-                         y:                bullet[:attrs][:bbox][1],
-                         w:                bullet[:attrs][:bbox][2],
-                         h:                bullet[:attrs][:bbox][3],
-                         r:                0,
-                         g:                255,
-                         b:                0,
-                         a:                255,
-                         primitive_marker: :border
-                     }.anchor_rect(0, 0)] : []
+                                  x:                bullet[:attrs][:bbox][0],
+                                  y:                bullet[:attrs][:bbox][1],
+                                  w:                bullet[:attrs][:bbox][2],
+                                  h:                bullet[:attrs][:bbox][3],
+                                  r:                0,
+                                  g:                255,
+                                  b:                0,
+                                  a:                255,
+                                  primitive_marker: :border
+                              }.anchor_rect(0, 0)] : []
     debug_outline.append [
                              {
                                  x:              bullet[:pos][:x],
@@ -53,7 +53,7 @@ module Bullet
   # @param [Hash] bullet
   # @param [Hash] game
   def Bullet::despawn?(bullet, game)
-    return !(bullet[:attrs][:bbox].inside_rect?([-50,-50,1380,820]))
+    return !(bullet[:attrs][:bbox].inside_rect?([-50, -50, 1380, 820]))
     #TODO: collision, age
   end
 
@@ -72,7 +72,7 @@ module Bullet
   def Bullet::next_attrs(bullet, new_pos)
     {
         sprite: bullet[:attrs][:sprite],
-        bbox:   [new_pos[:x], new_pos[:y], bullet[:attrs][:bbox][2], bullet[:attrs][:bbox][3]].anchor_rect(0.5,0.5)
+        bbox:   [new_pos[:x], new_pos[:y], bullet[:attrs][:bbox][2], bullet[:attrs][:bbox][3]].anchor_rect(0.5, 0.5)
     }
   end
 end

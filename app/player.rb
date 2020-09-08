@@ -43,7 +43,7 @@ module Player
                 base_accel:           0.5,
                 base_friction:        0.85,
                 base_bullet_momentum: 0.66,
-                bbox: [640,360,64,88].anchor_rect(0.5, 0)
+                bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
             },
             attack:      {
                 base_cooldown:   12,
@@ -55,11 +55,11 @@ module Player
 
   # @param [Hash] player_intent
   # @param [Hash] game
-  def Player::next_state(player_intent, game)
+  def Player::next_state(game)
     pos     = Player::next_pos(game[:player])
-    vel     = Player::next_vel(game[:player], player_intent)
-    attack  = Player::next_attack(game[:player], player_intent)
-    facing  = Player::next_facing(player_intent)
+    vel     = Player::next_vel(game[:player], game[:intent])
+    attack  = Player::next_attack(game[:player], game[:intent])
+    facing  = Player::next_facing(game[:intent])
     sprites = game[:player][:sprites] #Const for now
     attrs   = Player::next_attrs(game[:player], pos)
     {
@@ -76,16 +76,16 @@ module Player
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Player::renderables(player)
     debug_outline = $DEBUG ? [{
-         x:                player[:attrs][:physics][:bbox][0],
-         y:                player[:attrs][:physics][:bbox][1],
-         w:                player[:attrs][:physics][:bbox][2],
-         h:                player[:attrs][:physics][:bbox][3],
-         r:                0,
-         g:                255,
-         b:                0,
-         a:                255,
-         primitive_marker: :border
-     }] : []
+                                  x:                player[:attrs][:physics][:bbox][0],
+                                  y:                player[:attrs][:physics][:bbox][1],
+                                  w:                player[:attrs][:physics][:bbox][2],
+                                  h:                player[:attrs][:physics][:bbox][3],
+                                  r:                0,
+                                  g:                255,
+                                  b:                0,
+                                  a:                255,
+                                  primitive_marker: :border
+                              }] : []
     debug_outline.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
   end
 
@@ -105,27 +105,27 @@ module Player
         left:  {x: -1.0, y: 0.0},
         right: {x: 1.0, y: 0.0},
     }
-    raw_vel = player_intent[:walk].map { |dir, active| XYVector.scale(unit_v[dir], (active ? player[:attrs][:physics][:base_accel] : 0.0)) }
-                          .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
+    raw_vel = player_intent[:move].compact.map { |_, direction| unit_v[direction] }
+                                  .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
     limiter = XYVector.abs(raw_vel).fdiv(player[:attrs][:physics][:base_speed]).greater(1.0)
     lim_vel = XYVector.div(raw_vel, limiter)
-    {
-        x: lim_vel[:x] * ((player_intent[:walk][:left] ^ player_intent[:walk][:right]) ? 1.0 : player[:attrs][:physics][:base_friction]),
-        y: lim_vel[:y] * ((player_intent[:walk][:up] ^ player_intent[:walk][:down]) ? 1.0 : player[:attrs][:physics][:base_friction])
+    vel     = {
+        x: lim_vel[:x] * ((player_intent[:move][:horizontal] != nil) ? 1.0 : player[:attrs][:physics][:base_friction]),
+        y: lim_vel[:y] * ((player_intent[:move][:vertical] != nil) ? 1.0 : player[:attrs][:physics][:base_friction])
     }
-
+    vel
   end
 
   # @param [Hash] player
   # @param [Hash{Symbol=>Hash}] player_intent
   def Player::next_attack(player, player_intent)
     {
-        cooldown: if player[:attack][:cooldown] == 0 && player_intent[:shoot].values.any?
+        cooldown: if player[:attack][:cooldown] == 0 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
                     player[:attrs][:attack][:base_cooldown]
                   else
                     (player[:attack][:cooldown] - 1).greater(0)
                   end,
-        left_eye: if player[:attack][:cooldown] == 0 && player_intent[:shoot].values.any?
+        left_eye: if player[:attack][:cooldown] == 0 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
                     !player[:attack][:left_eye]
                   else
                     player[:attack][:left_eye]
@@ -133,38 +133,14 @@ module Player
     }
   end
 
-  # @param [Hash] player_intent
-  def Player::shoot_direction(player_intent)
-    if player_intent[:shoot][:up] == player_intent[:shoot][:down]
-      if player_intent[:shoot][:left] == player_intent[:shoot][:right]
-        nil
-      else
-        player_intent[:shoot][:left] ? :left : :right
-      end
-    else
-      player_intent[:shoot][:up] ? :up : :down
-    end
-  end
-
-  # @param [Hash] player_intent
-  def Player::move_direction(player_intent)
-    if player_intent[:walk][:up] != player_intent[:walk][:down]
-      player_intent[:walk][:up] ? :up : :down
-    elsif player_intent[:walk][:right] != player_intent[:walk][:left]
-      player_intent[:walk][:right] ? :right : :left
-    else
-      nil
-    end
-  end
-
   # @param [Hash{Symbol=>Hash}] player_intent
   def Player::next_facing(player_intent)
-    shoot_dir = Player::shoot_direction(player_intent)
-    move_dir  = Player::move_direction(player_intent)
+    head_dir = player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal] || :down
+    body_dir = player_intent[:move][:vertical] || player_intent[:move][:horizontal] || :down
     {
-        body: move_dir || :down,
-        head: shoot_dir || move_dir || :down,
-        face: shoot_dir || move_dir || :down,
+        body: body_dir,
+        head: head_dir,
+        face: head_dir,
     }
   end
 
@@ -191,7 +167,7 @@ module Player
             base_accel:           player[:attrs][:physics][:base_accel],
             base_friction:        player[:attrs][:physics][:base_friction],
             base_bullet_momentum: player[:attrs][:physics][:base_bullet_momentum],
-            bbox: [new_pos[:x],new_pos[:y],player[:attrs][:physics][:bbox][2],player[:attrs][:physics][:bbox][3]].anchor_rect(0.5, 0.05)
+            bbox:                 [new_pos[:x], new_pos[:y], player[:attrs][:physics][:bbox][2], player[:attrs][:physics][:bbox][3]].anchor_rect(0.5, 0.05)
         },
         attack:      player[:attrs][:attack]
     }

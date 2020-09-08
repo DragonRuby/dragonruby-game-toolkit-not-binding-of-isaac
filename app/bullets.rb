@@ -6,10 +6,10 @@ module Bullets
 
   # @param [Hash] player_intent
   # @param [Hash] game
-  def Bullets::next_state(player_intent, game)
+  def Bullets::next_state(game)
     game[:bullets].map { |b| Bullet::next_state(b) } # Advance time for each existing bullet
                   .reject { |b| Bullet::despawn?(b, game) } # Discard bullets that should be despawned
-                  .concat(Bullets::spawn_new_player_bullets(game[:player], player_intent)) # Player fired bullets always exist for at least one tick.
+                  .concat(Bullets::spawn_new_player_bullets(game[:player], game[:intent])) # Player fired bullets always exist for at least one tick.
   end
 
   # @param [Hash] bullets
@@ -19,10 +19,11 @@ module Bullets
   end
 
   # @param [Hash] player
-  # @param [Hash] player_intent
+  # @param [Hash{Symbol=>Hash}] player_intent
   def Bullets::spawn_new_player_bullets(player, player_intent)
-    return [] if (player[:attack][:cooldown] != 0) || (Player::shoot_direction(player_intent) == nil)
-    unit_v            = {
+    return [] if (player[:attack][:cooldown] != 0) || player_intent[:shoot].compact.empty?
+    direction = player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal]
+    unit_v    = {
         up:    {x: 0.0, y: 1.0},
         down:  {x: 0.0, y: -1.0},
         left:  {x: -1.0, y: 0.0},
@@ -35,7 +36,7 @@ module Bullets
     # The following mess of linear algebra makes sure the bullets only get a speed boost if
     #  fired in the same general direction of the player's velocity, while still allowing the
     #  player to angle shots by moving side to side.
-    base_vel          = XYVector::scale(unit_v[Player::shoot_direction(player_intent)], player[:attrs][:attack][:base_shot_speed])
+    base_vel          = XYVector::scale(unit_v[direction], player[:attrs][:attack][:base_shot_speed])
     a                 = player[:vel]
     b                 = base_vel
     cos_theta         = (XYVector::dot(a, b) / (XYVector::abs(a) * XYVector::abs(b)))
@@ -58,7 +59,7 @@ module Bullets
             right: {x: 16.0, y: 36.0},
         },
     }
-    pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][Player::shoot_direction(player_intent)])
+    pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][direction])
     [
         Bullet::spawn(pos, bullet_true_vel, {
             sprite: {

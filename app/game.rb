@@ -3,7 +3,8 @@ module Game
     {
         player:  Player::initial_state,
         bullets: Bullets::initial_state,
-        keymap:  Controller::controls
+        intent:  Controller::initial_state,
+        keymap:  Controller::keymap,
     }
   end
 
@@ -17,13 +18,14 @@ module Game
     ].reduce(&:append)
   end
 
-  # @param [Hash] player_intent
   # @param [Hash] game
-  def Game::next_state(player_intent, game)
+  # @param [GTK::Inputs] raw_input
+  def Game::next_state(game, raw_input)
     {
-        player:  Player::next_state(player_intent, game),
-        bullets: Bullets::next_state(player_intent, game),
+        player:  Player::next_state(game),
+        bullets: Bullets::next_state(game),
         keymap:  game[:keymap], #TODO: Allow player to rebind controls?
+        intent: Controller::get_player_intent(raw_input, game)
     }
   end
 
@@ -35,8 +37,6 @@ module Game
     args.outputs.background_color = [128, 128, 128]
     args.outputs.primitives << Game::renderables(prev_state)
 
-    player_intent = Controller::get_player_intent(args.inputs, args.state.game[:keymap])
-
-    args.state.game = Game::next_state(player_intent, prev_state)
+    args.state.game = Game::next_state(prev_state, args.inputs)
   end
 end
