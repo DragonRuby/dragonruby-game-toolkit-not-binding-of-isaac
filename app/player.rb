@@ -31,6 +31,13 @@ module Player
                 up:    'sprites/player/head_up.png',
                 left:  'sprites/player/head_left.png',
                 right: 'sprites/player/head_right.png'
+            },
+            health: {
+                full: 'sprites/health/full.png',
+                half: 'sprites/health/half.png',
+                empty: 'sprites/health/empty.png',
+                soul_full: 'sprites/health/soul-full.png',
+                soul_half: 'sprites/health/soul-half.png'
             }
         },
         attrs:   {
@@ -48,6 +55,10 @@ module Player
             attack:      {
                 base_cooldown:   12,
                 base_shot_speed: 8.0
+            },
+            health:      { # Max health can be calculated from items
+                normal: 6,
+                soul: 0
             }
         }
     }
@@ -86,7 +97,29 @@ module Player
                                   a:                255,
                                   primitive_marker: :border
                               }] : []
-    debug_outline.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
+
+    # Calc health sprites
+    # Calc number of full hearts is
+    num_full = (player[:attrs][:health][:normal] / 2).floor
+    # Render fulls
+    health = (0...num_full).map do |i|
+        health_primitive(i+1, player[:sprites][:health][:full])
+    end
+    # Render half
+    if player[:attrs][:health][:normal] % 2 == 1
+        num_full += 1
+        health.push(health_primitive(num_full, player[:sprites][:health][:half]))
+    end
+    # Render emptys
+    (num_full+1..max_health(player)/2).each do |i|
+        health.push(health_primitive(i, player[:sprites][:health][:empty]))
+    end
+
+    [
+        *debug_outline,
+        *player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) },
+        *health
+    ]
   end
 
   # @param [Hash] player
@@ -160,7 +193,8 @@ module Player
   # @param [Hash] player
   # @param [Hash] new_pos
   def Player::next_attrs(player, new_pos)
-    {
+    # Merge to keep unchanged attrs
+    player[:attrs].merge ({
         render_size: player[:attrs][:render_size],
         physics:     {
             base_speed:           player[:attrs][:physics][:base_speed],
@@ -170,6 +204,23 @@ module Player
             bbox:                 [new_pos[:x], new_pos[:y], player[:attrs][:physics][:bbox][2], player[:attrs][:physics][:bbox][3]].anchor_rect(0.5, 0.05)
         },
         attack:      player[:attrs][:attack]
+    })
+  end
+
+  # @param [Hash] player
+  # @return [Int] max_health
+  def Player::max_health(player)
+      # TODO: Calculate based on player items
+      6
+  end
+
+  def Player::health_primitive(offset, path, y: 10)
+    {
+        x: offset*50 + 100,
+        y: y,
+        w: 40,
+        h: 40,
+        path: path
     }
   end
 end
