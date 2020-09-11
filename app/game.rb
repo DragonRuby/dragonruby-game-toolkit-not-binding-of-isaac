@@ -1,4 +1,5 @@
 module Game
+  # @return [Hash] The initial game state
   def Game::initial_state
     {
       # The :: is a unary operator that allows: constants, instance methods and class methods defined within
@@ -27,6 +28,7 @@ module Game
 
   # @param [Hash] game
   # @param [GTK::Inputs] raw_input
+  # @return [Hash] The new game state
   def Game::next_state(game, raw_input)
     {
       # Do not modify the player object directly, instead send the info about the current game state

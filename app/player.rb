@@ -1,13 +1,17 @@
 module Player
-  # @return [Hash]
+  # @return [Hash] The initial state of the player.
   def Player::initial_state
     {
+        # The initial position of the player, in the center of the screen.
         pos:     {x: 640.0, y: 360.0},
+        # The initial velocity of the player, stopped.
         vel:     {x: 0.0, y: 0.0},
+        # Info used when trying to fire a bullet.
         attack:  {
             cooldown: 0,
             left_eye: true
         },
+        # The direction each body part is facing. Mostly used for rendering
         facing:  {
             body: :down,
             head: :down,
@@ -33,11 +37,14 @@ module Player
                 right: 'sprites/player/head_right.png'
             }
         },
+        # Miscellaneous attributes regarding the player.
         attrs:   {
+            # The size of the player's on screen appearance.
             render_size: {
                 w: 64,
                 h: 128
             },
+            # Physics related values.
             physics:     {
                 base_speed:           5.0,
                 base_accel:           0.5,
@@ -45,6 +52,7 @@ module Player
                 base_bullet_momentum: 0.66,
                 bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
             },
+            # Attack related values.
             attack:      {
                 base_cooldown:   12,
                 base_shot_speed: 8.0
@@ -55,7 +63,9 @@ module Player
 
   # @param [Hash] player_intent
   # @param [Hash] game
+  # @return [Hash{Symbol->Hash}] The state of the player on the next tick.
   def Player::next_state(game)
+    # The player is complex enough that nearly all values are determined by sub-functions.
     pos     = Player::next_pos(game[:player])
     vel     = Player::next_vel(game[:player], game[:intent])
     attack  = Player::next_attack(game[:player], game[:intent])
@@ -75,6 +85,7 @@ module Player
   # @param [Hash] player
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Player::renderables(player)
+    # When in $DEBUG mode (enabled by typing `$DEBUG = true` in the console), show a green box corresponding to the player's bounding box.
     debug_outline = $DEBUG ? [{
                                   x:                player[:attrs][:physics][:bbox][0],
                                   y:                player[:attrs][:physics][:bbox][1],
@@ -86,6 +97,7 @@ module Player
                                   a:                255,
                                   primitive_marker: :border
                               }] : []
+    # Append the player's sprites in render order
     debug_outline.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
   end
 
@@ -97,7 +109,7 @@ module Player
 
   # @param [Hash] player
   # @param [Hash] player_intent
-  # @return [Hash{Symbol->Float}] vel
+  # @return [Hash{Symbol->Float}] The next velocity, after applying player input and friction.
   def Player::next_vel(player, player_intent)
     unit_v  = {
         up:    {x: 0.0, y: 1.0},
@@ -120,11 +132,13 @@ module Player
   # @param [Hash{Symbol=>Hash}] player_intent
   def Player::next_attack(player, player_intent)
     {
+        # If trying to fire and able to fire, set cooldown to the base cooldown. Otherwise, decrement the cooldown, but don't go below 0.
         cooldown: if player[:attack][:cooldown] == 0 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
                     player[:attrs][:attack][:base_cooldown]
                   else
                     (player[:attack][:cooldown] - 1).greater(0)
                   end,
+        # Toggle the eye we're firing from, if we are firing and can fire.
         left_eye: if player[:attack][:cooldown] == 0 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
                     !player[:attack][:left_eye]
                   else
@@ -134,9 +148,13 @@ module Player
   end
 
   # @param [Hash{Symbol=>Hash}] player_intent
+  # @return [Hash{Symbol->Symbol}] The directions each body is facing.
   def Player::next_facing(player_intent)
+    # Face the head in the direction of fire, or down if not firing.
     head_dir = player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal] || :down
+    # Face the body in the direction of motion, or down if not firing.
     body_dir = player_intent[:move][:vertical] || player_intent[:move][:horizontal] || :down
+    # Create and return the new hash.
     {
         body: body_dir,
         head: head_dir,
@@ -147,6 +165,7 @@ module Player
   # @param [Hash] player
   # @param [Symbol] part The body part to build a sprite for
   # @param [Symbol] direction The direction the body part is facing
+  # @return [Hash] The sprite for the specified body part, facing the specified direction.
   def Player::part_sprite(player, part, direction)
     {
         x:    player[:pos][:x],
@@ -159,6 +178,7 @@ module Player
 
   # @param [Hash] player
   # @param [Hash] new_pos
+  # @return [Hash] The next state of player attributes. Nearly everything is constant, save for the bounding box.
   def Player::next_attrs(player, new_pos)
     {
         render_size: player[:attrs][:render_size],
