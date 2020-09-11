@@ -15,6 +15,8 @@
 #   between how the player thinks about input and how the code "thinks" about input.
 
 module Controller
+
+  # @return [Hash] The controller key mapping. If you change the values, you change the controls.
   def Controller::keymap
     {
         move:  {
@@ -79,16 +81,16 @@ module Controller
     inputs = Controller::get_player_inputs(raw_inputs, game[:keymap])
     {
         shoot: {
-            vertical:   if inputs[:shoot][:up] != inputs[:shoot][:down]
-                          inputs[:shoot][:up] ? :up : :down
-                        elsif inputs[:init_shoot][:up] != inputs[:init_shoot][:down]
-                          inputs[:init_shoot][:up] ? :up : :down
-                        elsif inputs[:shoot][:up] || inputs[:shoot][:down]
-                          game[:intent][:shoot][:vertical]
+            vertical:   if inputs[:shoot][:up] != inputs[:shoot][:down] # If holding shoot up XOR holding shoot down
+                          inputs[:shoot][:up] ? :up : :down # Shoot either up or down
+                        elsif inputs[:init_shoot][:up] != inputs[:init_shoot][:down] # If just starting to shoot up XOR just starting to shoot down
+                          inputs[:init_shoot][:up] ? :up : :down # Shoot either up or down
+                        elsif inputs[:shoot][:up] || inputs[:shoot][:down]  # If the player is holding one of the vertical fire keys and we can't decide which way to shoot
+                          game[:intent][:shoot][:vertical] # Fallback to the player's vertical shooting intention on the last frame.
                         else
                           nil
                         end,
-            horizontal: if inputs[:shoot][:left] != inputs[:shoot][:right]
+            horizontal: if inputs[:shoot][:left] != inputs[:shoot][:right] # Same logic as above.
                           inputs[:shoot][:left] ? :left : :right
                         elsif inputs[:init_shoot][:left] != inputs[:init_shoot][:right]
                           inputs[:init_shoot][:left] ? :left : :right
@@ -99,8 +101,8 @@ module Controller
                         end
         },
         move:  {
-            vertical:   (inputs[:move][:up] == inputs[:move][:down]) ? nil : (inputs[:move][:up] ? :up : :down),
-            horizontal: (inputs[:move][:left] == inputs[:move][:right]) ? nil : (inputs[:move][:left] ? :left : :right)
+            vertical:   (inputs[:move][:up] == inputs[:move][:down]) ? nil : (inputs[:move][:up] ? :up : :down), # If moving up and down or neither, return nil. Else, return whether we want to move up or down.
+            horizontal: (inputs[:move][:left] == inputs[:move][:right]) ? nil : (inputs[:move][:left] ? :left : :right) # Same logic as above.
         }
     }
   end
