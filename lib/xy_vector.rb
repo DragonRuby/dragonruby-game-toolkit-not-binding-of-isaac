@@ -18,12 +18,7 @@ module XYVector
   # @param [Float] rhs
   # @return [Hash{Symbol=>Float}]
   def XYVector::scale(lhs, rhs)
-    if lhs.is_a? Float
-      return {x: lhs * rhs[:x], y: lhs * rhs[:y]}
-    elsif rhs.is_a? Float
-      return {x: lhs[:x] * rhs, y: lhs[:y] * rhs}
-    end # Scalar multiply
-    lhs[:x] * rhs[:x] + lhs[:y] * rhs[:y] # Dot product
+    {x: lhs[:x] * rhs, y: lhs[:y] * rhs}
   end
 
   # @param [Hash{Symbol=>Float}] lhs

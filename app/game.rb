@@ -14,7 +14,9 @@ module Game
     [
         Player::renderables(game[:player]),
         Bullets::renderables(game[:bullets]),
-        [10, 30, "FPS : #{$gtk.current_framerate.to_s.to_i}", 255, 0, 0].label
+        [10, 30, "FPS : #{$gtk.current_framerate.to_s.to_i}", 255, 0, 0].label,
+        [10, 60, "Player Speed : #{(100.0*XYVector.abs(game[:player][:vel])/game[:player][:attrs][:physics][:base_speed]).round}%", 255, 0, 0].label,
+        [10, 90, "Bullet Count : #{game[:bullets].length}", 255, 0, 0].label,
     ].reduce(&:append)
   end
 

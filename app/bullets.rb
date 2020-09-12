@@ -47,16 +47,16 @@ module Bullets
     bullet_true_vel   = XYVector::add(momentum_vector, base_vel)
     eye_offset        = {
         true:  {
-            up:    {x: 12.0, y: 64.0},
+            up:    {x: 12.0, y: 88.0},
             down:  {x: 12.0, y: 44.0},
-            left:  {x: -16.0, y: 36.0},
-            right: {x: 16.0, y: 60.0},
+            left:  {x: -28.0, y: 44.0},
+            right: {x: 28.0, y: 68.0},
         },
         false: {
-            up:    {x: -12.0, y: 64.0},
+            up:    {x: -12.0, y: 88.0},
             down:  {x: -12.0, y: 44.0},
-            left:  {x: -16.0, y: 60.0},
-            right: {x: 16.0, y: 36.0},
+            left:  {x: -28.0, y: 68.0},
+            right: {x: 28.0, y: 44.0},
         },
     }
     pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][direction])

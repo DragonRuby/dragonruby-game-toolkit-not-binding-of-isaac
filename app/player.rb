@@ -40,7 +40,7 @@ module Player
             },
             physics:     {
                 base_speed:           5.0,
-                base_accel:           0.5,
+                base_accel:           0.35,
                 base_friction:        0.85,
                 base_bullet_momentum: 0.66,
                 bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
@@ -59,7 +59,7 @@ module Player
     pos     = Player::next_pos(game[:player])
     vel     = Player::next_vel(game[:player], game[:intent])
     attack  = Player::next_attack(game[:player], game[:intent])
-    facing  = Player::next_facing(game[:intent])
+    facing  = Player::next_facing(game[:player], game[:intent])
     sprites = game[:player][:sprites] #Const for now
     attrs   = Player::next_attrs(game[:player], pos)
     {
@@ -105,7 +105,7 @@ module Player
         left:  {x: -1.0, y: 0.0},
         right: {x: 1.0, y: 0.0},
     }
-    raw_vel = player_intent[:move].compact.map { |_, direction| unit_v[direction] }
+    raw_vel = player_intent[:move].compact.map { |_, direction| XYVector.scale(unit_v[direction], player[:attrs][:physics][:base_accel]) }
                                   .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
     limiter = XYVector.abs(raw_vel).fdiv(player[:attrs][:physics][:base_speed]).greater(1.0)
     lim_vel = XYVector.div(raw_vel, limiter)
@@ -133,10 +133,19 @@ module Player
     }
   end
 
+  # @param [Hash] player
   # @param [Hash{Symbol=>Hash}] player_intent
-  def Player::next_facing(player_intent)
-    head_dir = player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal] || :down
-    body_dir = player_intent[:move][:vertical] || player_intent[:move][:horizontal] || :down
+  def Player::next_facing(player, player_intent)
+    body_dir = player_intent[:move][:vertical] ||
+        player_intent[:move][:horizontal] ||
+        (XYVector.abs(player[:vel]) > 0.5 ? player[:facing][:body] : nil) ||
+        :down
+    head_dir = player_intent[:shoot][:vertical] ||
+        player_intent[:shoot][:horizontal] ||
+        player_intent[:move][:vertical] ||
+        player_intent[:move][:horizontal] ||
+        (player[:attack][:cooldown] > 0 ? player[:facing][:head] : nil) ||
+        :down
     {
         body: body_dir,
         head: head_dir,
@@ -160,8 +169,13 @@ module Player
   # @param [Hash] player
   # @param [Hash] new_pos
   def Player::next_attrs(player, new_pos)
+    cooldown_progress = ((player[:attack][:cooldown]).fdiv(player[:attrs][:attack][:base_cooldown])).greater(0.0).lesser(1.0)
+    cooldown_eased    = ((4.0 * cooldown_progress) * (cooldown_progress - 1.0)) ** 4.0
     {
-        render_size: player[:attrs][:render_size],
+        render_size: {
+            w: Player::initial_state[:attrs][:render_size][:w] + (cooldown_eased * 16).to_int,
+            h: Player::initial_state[:attrs][:render_size][:h] - (cooldown_eased * 12).to_int
+        },
         physics:     {
             base_speed:           player[:attrs][:physics][:base_speed],
             base_accel:           player[:attrs][:physics][:base_accel],

@@ -88,7 +88,7 @@ module DungeonMaster
     min_x, max_x = *(layout.values.reduce([999999, -999999]) { |acc, val| [acc[0].lesser(val.x), acc[1].greater(val.x)] })
     min_y, max_y = *(layout.values.reduce([999999, -999999]) { |acc, val| [acc[0].lesser(val.y), acc[1].greater(val.y)] })
     char_arr     = (min_y..max_y).to_a.map { |_| (" " * (max_x + 1 - min_x)).chars }
-    layout.values.each do |room|
+    layout.each_value do |room|
       char_arr[room[:y] - min_y][room[:x] - min_x] = room[:type].to_s[0]
     end
     char_arr.map { |chs| chs.join('') }.join("\n")
