@@ -6,8 +6,10 @@ module Bullets
 
   # @param [Hash] player_intent
   # @param [Hash] game
-  def Bullets::next_state(game)
-    game[:bullets].map { |b| Bullet::next_state(b) } # Advance time for each existing bullet
+  def Bullets::tick_diff(game)
+    # TODO: How do we do a deep_merge on an array of bullets without duplicating bullets?
+    # Maybe each bullet could get a uuid, and we'd replace the array with a Hash{UUID=>Bullet}?
+    game[:bullets].map { |b| Bullet::tick_diff(b) } # Advance time for each existing bullet
                   .reject { |b| Bullet::despawn?(b, game) } # Discard bullets that should be despawned
                   .concat(Bullets::spawn_new_player_bullets(game[:player], game[:intent])) # Player fired bullets always exist for at least one tick.
   end

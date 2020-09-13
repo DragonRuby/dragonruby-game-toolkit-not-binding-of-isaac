@@ -46,7 +46,7 @@ module Player
                 bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
             },
             attack:      {
-                base_cooldown:   8,
+                base_cooldown:   12,
                 base_shot_speed: 8.0
             }
         }
@@ -55,87 +55,97 @@ module Player
 
   # @param [Hash] player_intent
   # @param [Hash] game
-  def Player::next_state(game)
-    pos     = Player::next_pos(game[:player])
-    vel     = Player::next_vel(game[:player], game[:intent])
-    attack  = Player::next_attack(game[:player], game[:intent])
-    facing  = Player::next_facing(game[:player], game[:intent])
-    sprites = game[:player][:sprites] #Const for now
-    attrs   = Player::next_attrs(game[:player], pos)
-    {
-        pos:     pos,
-        vel:     vel,
-        attack:  attack,
-        facing:  facing,
-        sprites: sprites,
-        attrs:   attrs
-    }
+  def Player::tick_diff(game)
+    out = {}
+    out.deep_merge!(Player::update_vel(game[:player], game[:intent]))
+    out.deep_merge!(Player::update_attack(game[:player], game[:intent]))
+    out.deep_merge!(Player::update_facing(game[:player], game[:intent]))
+    out.deep_merge!(Player::update_attrs(game[:player]))
+    out.deep_merge!(Player::update_pos(game[:player])) if XYVector.abs(game[:player][:vel]) >= 0.001
+    out
   end
 
   # @param [Hash] player
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Player::renderables(player)
-    debug_outline = $DEBUG ? [{
-                                  x:                player[:attrs][:physics][:bbox][0],
-                                  y:                player[:attrs][:physics][:bbox][1],
-                                  w:                player[:attrs][:physics][:bbox][2],
-                                  h:                player[:attrs][:physics][:bbox][3],
-                                  r:                0,
-                                  g:                255,
-                                  b:                0,
-                                  a:                255,
-                                  primitive_marker: :border
-                              }] : []
-    debug_outline.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
+    bbox = {
+        x:                player[:attrs][:physics][:bbox][0],
+        y:                player[:attrs][:physics][:bbox][1],
+        w:                player[:attrs][:physics][:bbox][2],
+        h:                player[:attrs][:physics][:bbox][3],
+        r:                0,
+        g:                255,
+        b:                0,
+        a:                255,
+        primitive_marker: :border
+    }
+    out  = []
+    out.push bbox if $DEBUG
+    out.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
   end
 
   # @param [Hash] player
-  # @return [Hash{Symbol->Float}] pos
-  def Player::next_pos(player)
-    XYVector.add(player[:pos], player[:vel])
+  # @return [Hash] deep-mergeable sub-hash of player with updated values related to position
+  def Player::update_pos(player)
+    pos = XYVector.add(player[:pos], player[:vel])
+    {
+        pos:   pos,
+        attrs: {
+            physics: {
+                bbox: [
+                          pos[:x],
+                          pos[:y],
+                          player[:attrs][:physics][:bbox][2],
+                          player[:attrs][:physics][:bbox][3]
+                      ].anchor_rect(0.5, 0.05)
+            }
+        }
+    }
   end
 
   # @param [Hash] player
   # @param [Hash] player_intent
-  # @return [Hash{Symbol->Float}] vel
-  def Player::next_vel(player, player_intent)
+  # @return [Hash] deep-mergeable sub-hash of player with updated values related to velocity
+  def Player::update_vel(player, player_intent)
     unit_v  = {
         up:    {x: 0.0, y: 1.0},
         down:  {x: 0.0, y: -1.0},
         left:  {x: -1.0, y: 0.0},
         right: {x: 1.0, y: 0.0},
     }
-    raw_vel = player_intent[:move].compact.map { |_, direction| XYVector.scale(unit_v[direction], player[:attrs][:physics][:base_accel]) }
+    raw_vel = player_intent[:move].compact
+                                  .map { |_, direction| XYVector.scale(unit_v[direction], player[:attrs][:physics][:base_accel]) }
                                   .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
     limiter = XYVector.abs(raw_vel).fdiv(player[:attrs][:physics][:base_speed]).greater(1.0)
     lim_vel = XYVector.div(raw_vel, limiter)
-    vel     = {
-        x: lim_vel[:x] * ((player_intent[:move][:horizontal] != nil) ? 1.0 : player[:attrs][:physics][:base_friction]),
-        y: lim_vel[:y] * ((player_intent[:move][:vertical] != nil) ? 1.0 : player[:attrs][:physics][:base_friction])
-    }
-    vel
-  end
-
-  # @param [Hash] player
-  # @param [Hash{Symbol=>Hash}] player_intent
-  def Player::next_attack(player, player_intent)
     {
-        cooldown: if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
-                    player[:attrs][:attack][:base_cooldown]
-                  else
-                    (player[:attack][:cooldown] - 1).greater(0)
-                  end,
-        left_eye: if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
-                    !player[:attack][:left_eye]
-                  else
-                    player[:attack][:left_eye]
-                  end
+        vel: {
+            x: lim_vel[:x] * ((player_intent[:move][:horizontal] != nil) ? 1.0 : player[:attrs][:physics][:base_friction]),
+            y: lim_vel[:y] * ((player_intent[:move][:vertical] != nil) ? 1.0 : player[:attrs][:physics][:base_friction])
+        }
     }
   end
 
   # @param [Hash] player
   # @param [Hash{Symbol=>Hash}] player_intent
-  def Player::next_facing(player, player_intent)
+  # # @return [Hash] deep-mergeable sub-hash of player with updated values related to attack data
+  def Player::update_attack(player, player_intent)
+    out = {}
+    if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
+      out[:cooldown] = player[:attrs][:attack][:base_cooldown]
+      out[:left_eye] = !player[:attack][:left_eye]
+    elsif player[:attack][:cooldown] > 0
+      out[:cooldown] = player[:attack][:cooldown] - 1
+    end
+    {
+        attack: out
+    }
+  end
+
+  # @param [Hash] player
+  # @param [Hash{Symbol=>Hash}] player_intent
+  # @return [Hash] deep-mergeable sub-hash of player with updated values related to facing direction
+  def Player::update_facing(player, player_intent)
     body_dir = player_intent[:move][:vertical] ||
         player_intent[:move][:horizontal] ||
         (XYVector.abs(player[:vel]) > 0.5 ? player[:facing][:body] : nil) ||
@@ -147,9 +157,11 @@ module Player
         (player[:attack][:cooldown] > 0 ? player[:facing][:head] : nil) ||
         :down
     {
-        body: body_dir,
-        head: head_dir,
-        face: head_dir,
+        facing: {
+            body: body_dir,
+            head: head_dir,
+            face: head_dir,
+        }
     }
   end
 
@@ -167,24 +179,19 @@ module Player
   end
 
   # @param [Hash] player
-  # @param [Hash] new_pos
-  def Player::next_attrs(player, new_pos)
-    cooldown_progress = ((player[:attack][:cooldown]).fdiv(player[:attrs][:attack][:base_cooldown])).greater(0.0).lesser(1.0)
-    cooldown_eased    = ((4.0 * cooldown_progress) * (cooldown_progress - 1.0)) ** 2.0
-    cooldown_eased = player[:attack][:cooldown].lesser(1) if player[:attrs][:attack][:base_cooldown] < 8
+  # # @return [Hash] deep-mergeable sub-hash of player with updated values related to attribute data
+  def Player::update_attrs(player)
+    min_rate = 8.0
+    cooldown_progress = 2.0*((min_rate-(player[:attrs][:attack][:base_cooldown] - player[:attack][:cooldown])).fdiv(8.0))
+    cooldown_eased    = 1-((0.0 + ((1.0-cooldown_progress) * (1.0-cooldown_progress))).clamp(0.0,1.0))
+    cooldown_eased    = player[:attack][:cooldown].lesser(1) if player[:attrs][:attack][:base_cooldown] < min_rate
     {
-        render_size: {
-            w: Player::initial_state[:attrs][:render_size][:w] + (cooldown_eased * 16).to_int,
-            h: Player::initial_state[:attrs][:render_size][:h] - (cooldown_eased * 12).to_int
-        },
-        physics:     {
-            base_speed:           player[:attrs][:physics][:base_speed],
-            base_accel:           player[:attrs][:physics][:base_accel],
-            base_friction:        player[:attrs][:physics][:base_friction],
-            base_bullet_momentum: player[:attrs][:physics][:base_bullet_momentum],
-            bbox:                 [new_pos[:x], new_pos[:y], player[:attrs][:physics][:bbox][2], player[:attrs][:physics][:bbox][3]].anchor_rect(0.5, 0.05)
-        },
-        attack:      player[:attrs][:attack]
+        attrs: {
+            render_size: {
+                w: Player::initial_state[:attrs][:render_size][:w] + (cooldown_eased * 16).to_int,
+                h: Player::initial_state[:attrs][:render_size][:h] - (cooldown_eased * 12).to_int
+            }
+        }
     }
   end
 end
