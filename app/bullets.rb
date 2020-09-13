@@ -21,7 +21,7 @@ module Bullets
   # @param [Hash] player
   # @param [Hash{Symbol=>Hash}] player_intent
   def Bullets::spawn_new_player_bullets(player, player_intent)
-    return [] if (player[:attack][:cooldown] != 0) || player_intent[:shoot].compact.empty?
+    return [] if (player[:attack][:cooldown] > 1) || player_intent[:shoot].compact.empty?
     direction = player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal]
     unit_v    = {
         up:    {x: 0.0, y: 1.0},

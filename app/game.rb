@@ -38,6 +38,7 @@ module Game
 
     args.outputs.background_color = [128, 128, 128]
     args.outputs.primitives << Game::renderables(prev_state)
+    #args.outputs.debug << args.gtk.framerate_diagnostics_primitives
 
     args.state.game = Game::next_state(prev_state, args.inputs)
   end

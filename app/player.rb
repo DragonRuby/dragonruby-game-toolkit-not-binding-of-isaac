@@ -46,7 +46,7 @@ module Player
                 bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
             },
             attack:      {
-                base_cooldown:   12,
+                base_cooldown:   8,
                 base_shot_speed: 8.0
             }
         }
@@ -120,12 +120,12 @@ module Player
   # @param [Hash{Symbol=>Hash}] player_intent
   def Player::next_attack(player, player_intent)
     {
-        cooldown: if player[:attack][:cooldown] == 0 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
+        cooldown: if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
                     player[:attrs][:attack][:base_cooldown]
                   else
                     (player[:attack][:cooldown] - 1).greater(0)
                   end,
-        left_eye: if player[:attack][:cooldown] == 0 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
+        left_eye: if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
                     !player[:attack][:left_eye]
                   else
                     player[:attack][:left_eye]
@@ -139,7 +139,7 @@ module Player
     body_dir = player_intent[:move][:vertical] ||
         player_intent[:move][:horizontal] ||
         (XYVector.abs(player[:vel]) > 0.5 ? player[:facing][:body] : nil) ||
-        :down
+        player[:facing][:head]
     head_dir = player_intent[:shoot][:vertical] ||
         player_intent[:shoot][:horizontal] ||
         player_intent[:move][:vertical] ||
@@ -170,7 +170,8 @@ module Player
   # @param [Hash] new_pos
   def Player::next_attrs(player, new_pos)
     cooldown_progress = ((player[:attack][:cooldown]).fdiv(player[:attrs][:attack][:base_cooldown])).greater(0.0).lesser(1.0)
-    cooldown_eased    = ((4.0 * cooldown_progress) * (cooldown_progress - 1.0)) ** 4.0
+    cooldown_eased    = ((4.0 * cooldown_progress) * (cooldown_progress - 1.0)) ** 2.0
+    cooldown_eased = player[:attack][:cooldown].lesser(1) if player[:attrs][:attack][:base_cooldown] < 8
     {
         render_size: {
             w: Player::initial_state[:attrs][:render_size][:w] + (cooldown_eased * 16).to_int,
