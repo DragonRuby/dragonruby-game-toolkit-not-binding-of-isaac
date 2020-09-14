@@ -12,11 +12,11 @@ module Upgrade
               shot_delay: 1.0,
           },
           flat: {
-              damage:     1.0,
-              speed:      1.0,
-              range:      1.0,
-              shot_speed: 1.0,
-              shot_delay: 1.0,
+              damage:     0.0,
+              speed:      0.0,
+              range:      0.0,
+              shot_speed: 0.0,
+              shot_delay: 0.0,
           }
       }
   }
