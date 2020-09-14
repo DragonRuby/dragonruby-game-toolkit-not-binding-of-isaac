@@ -9,7 +9,7 @@ module Bullets
   def Bullets::tick_diff(game)
     # TODO: How do we do a deep_merge on an array of bullets without duplicating bullets?
     # Maybe each bullet could get a uuid, and we'd replace the array with a Hash{UUID=>Bullet}?
-    game[:bullets].map { |b| Bullet::tick_diff(b) } # Advance time for each existing bullet
+    game[:bullets].map { |b| b.deep_merge Bullet::tick_diff(b) } # Advance time for each existing bullet
                   .reject { |b| Bullet::despawn?(b, game) } # Discard bullets that should be despawned
                   .concat(Bullets::spawn_new_player_bullets(game[:player], game[:intent])) # Player fired bullets always exist for at least one tick.
   end
@@ -64,18 +64,17 @@ module Bullets
     pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][direction])
     [
         Bullet::spawn(pos, bullet_true_vel, {
-            sprite: {
-                #TODO: Put magic values somewhere better
-                w:          32,
-                h:          32,
-                path:       'sprites/bullets/standard.png',
-                angle_snap: 10.0
-            },
             bbox:   [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5),
-            stats: {
+            stats:  {
                 damage: player[:stats][:total][:damage],
-                range: player[:stats][:total][:range]
+                range:  player[:stats][:total][:range]
             }
+        }, {
+            #TODO: Put magic values somewhere better
+            w:          32,
+            h:          32,
+            path:       'sprites/bullets/standard.png',
+            angle_snap: 10
         })
     ]
   end

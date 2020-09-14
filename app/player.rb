@@ -134,7 +134,7 @@ module Player
       end
     end
 
-    out[:stats][:total][:shot_delay] = out[:stats][:total][:shot_delay].round.greater(1)
+    out[:stats][:total][:shot_delay] = out[:stats][:total][:shot_delay].round.greater(1) # Minimum shot delay
 
     out
   end

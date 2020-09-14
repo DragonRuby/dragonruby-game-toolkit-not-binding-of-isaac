@@ -2,32 +2,34 @@ module Bullet
   # @param [Hash] pos
   # @param [Hash] vel
   # @param [Hash] attrs
-  def self::spawn(pos, vel, attrs)
+  def self::spawn(pos, vel, attrs, sprite_opts)
     {
-        pos:   pos,
-        vel:   vel,
-        age: 0,
-        attrs: attrs
+        pos:    pos,
+        vel:    vel,
+        age:    0,
+        attrs:  attrs,
+        sprite: BulletSprite.new(sprite_opts)
     }
   end
 
   # @param [Hash] bullet
   def self::tick_diff(bullet)
-    pos   = Bullet::next_pos(bullet)
-    vel   = Bullet::next_vel(bullet)
-    attrs = Bullet::next_attrs(bullet, pos)
-    {
-        pos:   pos,
-        vel:   vel,
+    out = {
         age: bullet[:age] + 1,
-        attrs: attrs
+        sprite: bullet[:sprite].update(bullet)
     }
+    out.deep_merge! Bullet::next_pos(bullet)
+    out.deep_merge! Bullet::next_vel(bullet)
+    out.deep_merge! Bullet::next_attrs(bullet)
+    out
   end
 
   # @param [Hash] bullet
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def self::renderables(bullet)
-    bbox = {
+    sprite = bullet[:sprite]
+    out    = [sprite]
+    out.unshift({
         x:                bullet[:attrs][:bbox][0],
         y:                bullet[:attrs][:bbox][1],
         w:                bullet[:attrs][:bbox][2],
@@ -37,49 +39,96 @@ module Bullet
         b:                0,
         a:                255,
         primitive_marker: :border
-    }
-    sprite = {
-        x:              bullet[:pos][:x],
-        y:              bullet[:pos][:y],
-        w:              bullet[:attrs][:sprite][:w],
-        h:              bullet[:attrs][:sprite][:h],
-        path:           bullet[:attrs][:sprite][:path],
-        angle_anchor_x: 0.5,
-        angle_anchor_y: 0.5,
-        angle:          (XYVector::theta(bullet[:vel]) * 180.0 / (bullet[:attrs][:sprite][:angle_snap] * Math::PI)).round * bullet[:attrs][:sprite][:angle_snap],
-    }.anchor_rect(-0.5, -0.5)
-    out  = []
-    out.push(bbox) if $DEBUG
+    }) if $DEBUG
     out.push(sprite)
-
+    out
   end
 
   # @param [Hash] bullet
   # @param [Hash] game
   def Bullet::despawn?(bullet, game)
-    out = (bullet[:age] > bullet[:attrs][:stats][:range]) || !(bullet[:attrs][:bbox].inside_rect?([-50, -50, 1380, 820]))
-    #TODO: collision, age
-
+    out = (bullet[:age] > bullet[:attrs][:stats][:range]) || # Range despawn
+        !bullet[:pos][:x].between?(-50, 1330) || !bullet[:pos][:y].between?(-50, 770) # Offscreen despawn
     out
+    #TODO: collision
   end
 
   # @param [Hash] bullet
   def Bullet::next_pos(bullet)
-    XYVector.add(bullet[:pos], bullet[:vel])
+    pos = XYVector.add(bullet[:pos], bullet[:vel])
+    {
+        pos:   pos,
+        attrs: {
+            bbox: [pos[:x], pos[:y], bullet[:attrs][:bbox][2], bullet[:attrs][:bbox][3]].anchor_rect(0.5, 0.5)
+        }
+    }
   end
 
   # @param [Hash] bullet
   def Bullet::next_vel(bullet)
-    bullet[:vel]
+    return {} if true # vel is currently const
+    {
+        vel: bullet[:vel]
+    }
   end
 
   # @param [Hash] bullet
-  # @param [Hash] new_pos
-  def Bullet::next_attrs(bullet, new_pos)
+  def Bullet::next_attrs(bullet)
+    return {} if true # attrs are currently const
     {
-        sprite: bullet[:attrs][:sprite],
-        stats: bullet[:attrs][:stats],
-        bbox:   [new_pos[:x], new_pos[:y], bullet[:attrs][:bbox][2], bullet[:attrs][:bbox][3]].anchor_rect(0.5, 0.5)
+        attrs: {
+            stats:  bullet[:attrs][:stats],
+        }
     }
+  end
+end
+
+# A necessary evil - Class sprites are much faster than hash sprites, and there can be a *lot* of bullets on screen.
+class BulletSprite
+  attr_sprite
+
+  # @param [Hash] opts
+  def initialize(opts)
+    @x = -50
+    @y = -50
+    @w              = opts[:w]
+    @h              = opts[:h]
+    @off_x = @w/2
+    @off_y = @h/2
+    @path           = opts[:path]
+    @angle_anchor_x = 0.5
+    @angle_anchor_y = 0.5
+    @angle_snap     = 10.0
+  end
+
+  # @param [Hash] bullet
+  def update(bullet)
+    @x     = bullet[:pos][:x] - @off_x
+    @y     = bullet[:pos][:y] - @off_y
+    @angle ||= (XYVector::theta(bullet[:vel]) * 180.0 / (@angle_snap * Math::PI)).round * @angle_snap # Expensive to calculate. Vel is currently constant, so only do this once.
+    self
+  end
+
+  def serialize
+    {
+        x: x,
+        y: y,
+        off_x: @off_x,
+        off_y: @off_y,
+        w: w,
+        h: h,
+        path: path,
+        angle: angle,
+        angle_anchor_x: angle_anchor_x,
+        angle_anchor_y: angle_anchor_y,
+    }
+  end
+
+  def inspect
+    serialize.to_s
+  end
+
+  def to_s
+    serialize.to_s
   end
 end
