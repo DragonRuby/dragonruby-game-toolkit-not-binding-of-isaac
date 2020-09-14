@@ -122,9 +122,10 @@ module Player
   # @return [Hash] deep-mergeable sub-hash of player with updated values related to position
   def Player::update_stats(player)
     out = {stats: {total: {}}}
-    player[:upgrades].each do |u|
-      player[:stats][:base].each_key do |k|
-        out[:stats][:total][k] = player[:stats][:base][k] + u[:modifiers][:flat][k]
+    player[:stats][:base].each_key do |k|
+      out[:stats][:total][k] = player[:stats][:base][k]
+      player[:upgrades].each do |u|
+        out[:stats][:total][k] += u[:modifiers][:flat][k]
       end
     end
     player[:upgrades].each do |u|
@@ -132,6 +133,9 @@ module Player
         out[:stats][:total][k] *= u[:modifiers][:mult][k]
       end
     end
+
+    out[:stats][:total][:shot_delay] = out[:stats][:total][:shot_delay].round.greater(1)
+
     out
   end
 
