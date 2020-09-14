@@ -51,7 +51,7 @@ module Upgrade
       {
           name:        "Range Booster",
           flavor_text: "Shoot just a little bit further",
-          description: "+10 range",
+          description: "+1 range",
           modifiers:   {
               flat: {
                   range: 1.0
