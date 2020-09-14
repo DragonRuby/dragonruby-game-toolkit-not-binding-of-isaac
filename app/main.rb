@@ -7,6 +7,7 @@ require 'app/bullets.rb'
 require 'app/bullet.rb'
 require 'app/dungeon_master.rb'
 require 'app/controller.rb'
+require 'app/upgrade.rb'
 
 # @param [GTK::Args] args
 def tick(args)

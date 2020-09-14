@@ -38,7 +38,7 @@ module Bullets
     # The following mess of linear algebra makes sure the bullets only get a speed boost if
     #  fired in the same general direction of the player's velocity, while still allowing the
     #  player to angle shots by moving side to side.
-    base_vel          = XYVector::scale(unit_v[direction], player[:attrs][:attack][:base_shot_speed])
+    base_vel          = XYVector::scale(unit_v[direction], player[:stats][:total][:shot_speed])
     a                 = player[:vel]
     b                 = base_vel
     cos_theta         = (XYVector::dot(a, b) / (XYVector::abs(a) * XYVector::abs(b)))
@@ -71,7 +71,11 @@ module Bullets
                 path:       'sprites/bullets/standard.png',
                 angle_snap: 10.0
             },
-            bbox:   [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5)
+            bbox:   [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5),
+            stats: {
+                damage: player[:stats][:total][:damage],
+                range: player[:stats][:total][:range]
+            }
         })
     ]
   end

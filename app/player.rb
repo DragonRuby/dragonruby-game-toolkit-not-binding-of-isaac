@@ -2,18 +2,18 @@ module Player
   # @return [Hash]
   def Player::initial_state
     {
-        pos:     {x: 640.0, y: 360.0},
-        vel:     {x: 0.0, y: 0.0},
-        attack:  {
+        pos:      {x: 640.0, y: 360.0},
+        vel:      {x: 0.0, y: 0.0},
+        attack:   {
             cooldown: 0,
             left_eye: true
         },
-        facing:  {
+        facing:   {
             body: :down,
             head: :down,
             face: :down
         },
-        sprites: {
+        sprites:  {
             body: {
                 down:  'sprites/player/body_y.png',
                 up:    'sprites/player/body_y.png',
@@ -33,23 +33,37 @@ module Player
                 right: 'sprites/player/head_right.png'
             }
         },
-        attrs:   {
+        attrs:    {
             render_size: {
                 w: 64,
                 h: 128
             },
             physics:     {
-                base_speed:           5.0,
                 base_accel:           0.35,
                 base_friction:        0.85,
                 base_bullet_momentum: 0.66,
                 bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
-            },
-            attack:      {
-                base_cooldown:   12,
-                base_shot_speed: 8.0
             }
-        }
+        },
+        stats:    {
+            total: {
+                damage:     5.0,
+                speed:      5.0,
+                range:      50.0,
+                shot_speed: 8.0,
+                shot_delay: 12,
+            },
+            base:  {
+                damage:     5.0,
+                speed:      5.0,
+                range:      50.0,
+                shot_speed: 8.0,
+                shot_delay: 12,
+            }
+        },
+        upgrades: [
+
+                  ]
     }
   end
 
@@ -61,6 +75,7 @@ module Player
     out.deep_merge!(Player::update_attack(game[:player], game[:intent]))
     out.deep_merge!(Player::update_facing(game[:player], game[:intent]))
     out.deep_merge!(Player::update_attrs(game[:player]))
+    out.deep_merge!(Player::update_stats(game[:player]))
     out.deep_merge!(Player::update_pos(game[:player])) if XYVector.abs(game[:player][:vel]) >= 0.001
     out
   end
@@ -104,6 +119,23 @@ module Player
   end
 
   # @param [Hash] player
+  # @return [Hash] deep-mergeable sub-hash of player with updated values related to position
+  def Player::update_stats(player)
+    out = {stats: {total: {}}}
+    player[:upgrades].each do |u|
+      player[:stats][:base].each_key do |k|
+        out[:stats][:total][k] = player[:stats][:base][k] + u[:modifiers][:flat][k]
+      end
+    end
+    player[:upgrades].each do |u|
+      player[:stats][:base].each_key do |k|
+        out[:stats][:total][k] *= u[:modifiers][:mult][k]
+      end
+    end
+    out
+  end
+
+  # @param [Hash] player
   # @param [Hash] player_intent
   # @return [Hash] deep-mergeable sub-hash of player with updated values related to velocity
   def Player::update_vel(player, player_intent)
@@ -116,7 +148,7 @@ module Player
     raw_vel = player_intent[:move].compact
                                   .map { |_, direction| XYVector.scale(unit_v[direction], player[:attrs][:physics][:base_accel]) }
                                   .reduce(player[:vel]) { |acc, v| XYVector.add(acc, v) }
-    limiter = XYVector.abs(raw_vel).fdiv(player[:attrs][:physics][:base_speed]).greater(1.0)
+    limiter = XYVector.abs(raw_vel).fdiv(player[:stats][:total][:speed]).greater(1.0)
     lim_vel = XYVector.div(raw_vel, limiter)
     {
         vel: {
@@ -132,7 +164,7 @@ module Player
   def Player::update_attack(player, player_intent)
     out = {}
     if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
-      out[:cooldown] = player[:attrs][:attack][:base_cooldown]
+      out[:cooldown] = player[:stats][:total][:shot_delay]
       out[:left_eye] = !player[:attack][:left_eye]
     elsif player[:attack][:cooldown] > 0
       out[:cooldown] = player[:attack][:cooldown] - 1
@@ -181,10 +213,10 @@ module Player
   # @param [Hash] player
   # # @return [Hash] deep-mergeable sub-hash of player with updated values related to attribute data
   def Player::update_attrs(player)
-    min_rate = 8.0
-    cooldown_progress = 2.0*((min_rate-(player[:attrs][:attack][:base_cooldown] - player[:attack][:cooldown])).fdiv(8.0))
-    cooldown_eased    = 1-((0.0 + ((1.0-cooldown_progress) * (1.0-cooldown_progress))).clamp(0.0,1.0))
-    cooldown_eased    = player[:attack][:cooldown].lesser(1) if player[:attrs][:attack][:base_cooldown] < min_rate
+    min_rate          = 8.0
+    cooldown_progress = 2.0 * ((min_rate - (player[:stats][:total][:shot_delay] - player[:attack][:cooldown])).fdiv(8.0))
+    cooldown_eased    = 1 - ((0.0 + ((1.0 - cooldown_progress) * (1.0 - cooldown_progress))).clamp(0.0, 1.0))
+    cooldown_eased    = player[:attack][:cooldown].lesser(1) if player[:stats][:total][:shot_delay] < min_rate
     {
         attrs: {
             render_size: {

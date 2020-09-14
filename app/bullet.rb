@@ -6,6 +6,7 @@ module Bullet
     {
         pos:   pos,
         vel:   vel,
+        age: 0,
         attrs: attrs
     }
   end
@@ -18,6 +19,7 @@ module Bullet
     {
         pos:   pos,
         vel:   vel,
+        age: bullet[:age] + 1,
         attrs: attrs
     }
   end
@@ -55,8 +57,10 @@ module Bullet
   # @param [Hash] bullet
   # @param [Hash] game
   def Bullet::despawn?(bullet, game)
-    return !(bullet[:attrs][:bbox].inside_rect?([-50, -50, 1380, 820]))
+    out = (bullet[:age] > bullet[:attrs][:stats][:range]) || !(bullet[:attrs][:bbox].inside_rect?([-50, -50, 1380, 820]))
     #TODO: collision, age
+
+    out
   end
 
   # @param [Hash] bullet
@@ -74,6 +78,7 @@ module Bullet
   def Bullet::next_attrs(bullet, new_pos)
     {
         sprite: bullet[:attrs][:sprite],
+        stats: bullet[:attrs][:stats],
         bbox:   [new_pos[:x], new_pos[:y], bullet[:attrs][:bbox][2], bullet[:attrs][:bbox][3]].anchor_rect(0.5, 0.5)
     }
   end
