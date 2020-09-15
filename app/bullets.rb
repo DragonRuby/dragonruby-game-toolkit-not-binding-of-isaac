@@ -1,23 +1,36 @@
 module Bullets
 
   def self::initial_state
-    []
+    {
+        player_bullets:     [],
+        parametric_bullets: []
+    }
   end
 
-  # @param [Hash] player_intent
   # @param [Hash] game
   def Bullets::tick_diff(game)
     # TODO: How do we do a deep_merge on an array of bullets without duplicating bullets?
     # Maybe each bullet could get a uuid, and we'd replace the array with a Hash{UUID=>Bullet}?
-    game[:bullets].map { |b| b.deep_merge Bullet::tick_diff(b) } # Advance time for each existing bullet
-                  .reject { |b| Bullet::despawn?(b, game) } # Discard bullets that should be despawned
-                  .concat(Bullets::spawn_new_player_bullets(game[:player], game[:intent])) # Player fired bullets always exist for at least one tick.
+    {
+        player_bullets: game[:bullets][:player_bullets]
+                            .map { |b| b.deep_merge Bullet::tick_diff(b) } # Advance time for each existing bullet
+                            .reject { |b| Bullet::despawn?(b, game) } # Discard bullets that should be despawned
+                            .concat(Bullets::spawn_new_player_bullets(game[:player], game[:intent])), # Player fired bullets always exist for at least one tick.
+        parametric_bullets: game[:bullets][:parametric_bullets]
+                                .map { |b| b.deep_merge ParametricBullet::tick_diff(b) } # Advance time for each existing bullet
+                                .reject { |b| ParametricBullet::despawn?(b, game) } # Discard bullets that should be despawned
+                                .concat(Bullets::spawn_new_parametric_bullets(game))
+    }
   end
 
   # @param [Hash] bullets
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Bullets::renderables(bullets)
-    bullets.map { |b| Bullet::renderables(b) }
+    [
+        bullets[:parametric_bullets].flat_map { |b| ParametricBullet::renderables(b) },
+        bullets[:player_bullets].map { |b| Bullet::renderables(b) }
+    ].flatten
+
   end
 
   # @param [Hash] player
@@ -64,19 +77,47 @@ module Bullets
     pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][direction])
     [
         Bullet::spawn(pos, bullet_true_vel, {
-            bbox:   [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5),
-            stats:  {
+            bbox:  [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5),
+            stats: {
                 damage: player[:stats][:total][:damage],
                 range:  player[:stats][:total][:range]
             }
         }, {
-            #TODO: Put magic values somewhere better
-            w:          32,
-            h:          32,
-            path:       'sprites/bullets/standard.png',
-            angle_snap: 10
-        })
+                          #TODO: Put magic values somewhere better
+                          w:          32,
+                          h:          32,
+                          path:       'sprites/bullets/standard.png',
+                          angle_snap: 10
+                      })
     ]
+  end
+
+  # @param [Object] game
+  def Bullets::spawn_new_parametric_bullets(game)
+    return [] if $state.tick_count % 90 != 0
+    so = {
+        path: 'sprites/bullets/parametric.png',
+        r:    1 + ($state.tick_count % 180)*2,
+        g:    181 - ($state.tick_count % 180)*2,
+        b:    1
+    }
+    (1..4).map do |i|
+      ParametricBullet::spawn(
+          :radial_spin_out,
+          {x: 640, y: 540},
+          32,
+          900,
+          {
+              n:            i,
+              max_n:        4,
+              turns:        $state.tick_count % 180 == 0 ? 0.5 : -0.5,
+              dist:         600,
+              offset_theta: 0 #0.1 * Math::PI * $state.tick_count / 30
+          },
+          16,
+          so
+      )
+    end
   end
 
 
