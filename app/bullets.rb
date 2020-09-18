@@ -94,14 +94,15 @@ module Bullets
 
   # @param [Object] game
   def Bullets::spawn_new_parametric_bullets(game)
-    return [] if $state.tick_count % 90 != 0
+    mod = 40
+    return [] if $state.tick_count % mod != 0
     so = {
         path: 'sprites/bullets/parametric.png',
-        r:    1 + ($state.tick_count % 180)*2,
-        g:    181 - ($state.tick_count % 180)*2,
+        r:    ($state.tick_count % (2*mod)) == 0 ? 150 : 1,
+        g:    ($state.tick_count % (2*mod)) == 0 ? 1 : 150,
         b:    1
     }
-    (1..4).map do |i|
+    (1..6).map do |i|
       ParametricBullet::spawn(
           :radial_spin_out,
           {x: 640, y: 540},
@@ -109,10 +110,10 @@ module Bullets
           900,
           {
               n:            i,
-              max_n:        4,
-              turns:        $state.tick_count % 180 == 0 ? 0.5 : -0.5,
-              dist:         600,
-              offset_theta: 0 #0.1 * Math::PI * $state.tick_count / 30
+              max_n:        6,
+              turns:        2 * ($state.tick_count % (2*mod) == 0 ? 0.5 : -0.5),
+              dist:         1800,
+              offset_theta: 0.1 * Math::PI * $state.tick_count * ($state.tick_count % (2*mod) == 0 ? 1 : -1) / 30
           },
           16,
           so
