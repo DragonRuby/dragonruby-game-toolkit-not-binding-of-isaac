@@ -1,7 +1,7 @@
 module DungeonMaster
   # @param [Hash] params
   def DungeonMaster::generate(params)
-    initial_layout = DungeonMaster::add_room!({}, DungeonMaster::init_room(0, 0, :spawn, 1))
+    initial_layout = DungeonMaster::add_room!({}, Room::initial_state)
     prng           = PRNG.new(params[:config][:seed])
     layout, _      = (1..params[:room_counts][:normal]).reduce([initial_layout, [[0, 0]]]) { |acc, _| DungeonMaster::add_normal_room!(acc[0], acc[1], 1, prng) }
     puts DungeonMaster::layout_str(layout)
@@ -26,12 +26,15 @@ module DungeonMaster
   # @param [Integer] y
   # @param [Symbol] type
   # @param [Integer] stage
-  def DungeonMaster::init_room(x, y, type, stage)
+  def DungeonMaster::init_room(x, y, type, stage, floor_tile)
     {
         x:     x,
         y:     y,
         type:  type,
-        stage: stage
+        stage: stage,
+        sprites: {
+          floor_tile: floor_tile,
+        }
     }
   end
 
@@ -78,7 +81,7 @@ module DungeonMaster
       return DungeonMaster::add_normal_room!(layout, working_set - [parent], stage, prng)
     else
       child      = prng.sample children
-      new_layout = DungeonMaster::add_room!(layout, DungeonMaster::init_room(*child, :normal, stage))
+      new_layout = DungeonMaster::add_room!(layout, DungeonMaster::init_room(*child, :normal, stage, 'sprites/room/steel_diagonal_tile.png'))
       return [new_layout, working_set + [child]]
     end
   end
@@ -92,5 +95,23 @@ module DungeonMaster
       char_arr[room[:y] - min_y][room[:x] - min_x] = room[:type].to_s[0]
     end
     char_arr.map { |chs| chs.join('') }.join("\n")
+  end
+
+  def DungeonMaster::renderables(player)
+    tile_sprite = [0,0,64,64,'sprites/rooms/steel_diagonal_tile.png']
+    out = []
+    i = 0
+    j = 0
+    height = 12 #the amount of sprites to be placed
+    width = 20
+    while i < width
+      while j < height
+        out.append([64*i,64*j,64,64,'sprites/rooms/steel_diagonal_tile.png'].sprite)
+        j+=1
+      end
+      j = 0
+      i+=1
+    end
+    return out
   end
 end

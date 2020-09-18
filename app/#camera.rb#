@@ -1,0 +1,5 @@
+module Camera
+  def Camera::initial_state
+    {
+      pos:{x: 640.0, y: 360},
+     

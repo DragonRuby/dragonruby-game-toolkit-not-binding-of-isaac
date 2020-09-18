@@ -1,0 +1,12 @@
+module Room
+  def Room::initial_state
+    {
+        x:     0,
+        y:     0,
+        type:  :spawn,
+        stage: 1,
+        sprites: {
+          floor_tile: 'sprites/room/steel_diagonal_tile.png',
+        }
+    }
+  end

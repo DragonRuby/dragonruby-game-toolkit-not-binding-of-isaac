@@ -1,10 +1,11 @@
 module Game
   def Game::initial_state
     {
-        player:  Player::initial_state,
-        bullets: Bullets::initial_state,
-        intent:  Controller::initial_state,
-        keymap:  Controller::keymap,
+      player:  Player::initial_state,
+      room: Room::initial_state,
+      bullets: Bullets::initial_state,
+      intent:  Controller::initial_state,
+      keymap:  Controller::keymap,
     }
   end
 
@@ -12,6 +13,7 @@ module Game
   # @return [Array] An array of render primitives, in render order. (Background first, foreground last)
   def Game::renderables(game)
     [
+        Room::renderables(game[:player], game[:room]),
         Player::renderables(game[:player]),
         Bullets::renderables(game[:bullets]),
         {x: 10, y: 120, text: "FPS : #{$gtk.current_framerate.to_s.to_i}", r: 255, g: 0, b:0},
@@ -38,7 +40,8 @@ module Game
     # @type Hash
     prev_state      = args.state.game
 
-    args.outputs.background_color = [128, 128, 128]
+    #args.outputs.background_color = [128, 128, 128]
+    
     args.outputs.primitives << Game::renderables(prev_state)
     args.outputs.debug << args.gtk.framerate_diagnostics_primitives
     diff = Game::tick_diff(prev_state, args.inputs)
