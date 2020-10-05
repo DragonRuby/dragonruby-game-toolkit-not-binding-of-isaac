@@ -13,12 +13,12 @@ module Bullets
     # Maybe each bullet could get a uuid, and we'd replace the array with a Hash{UUID=>Bullet}?
     {
         player_bullets: game[:bullets][:player_bullets]
-                            .map { |b| b.deep_merge Bullet::tick_diff(b) } # Advance time for each existing bullet
                             .reject { |b| Bullet::despawn?(b, game) } # Discard bullets that should be despawned
+                            .map { |b| b.deep_merge Bullet::tick_diff(b) } # Advance time for each existing bullet
                             .concat(Bullets::spawn_new_player_bullets(game[:player], game[:intent])), # Player fired bullets always exist for at least one tick.
         parametric_bullets: game[:bullets][:parametric_bullets]
-                                .map { |b| b.deep_merge ParametricBullet::tick_diff(b) } # Advance time for each existing bullet
                                 .reject { |b| ParametricBullet::despawn?(b, game) } # Discard bullets that should be despawned
+                                .map { |b| b.deep_merge ParametricBullet::tick_diff(b) } # Advance time for each existing bullet
                                 .concat(Bullets::spawn_new_parametric_bullets(game))
     }
   end
@@ -77,7 +77,7 @@ module Bullets
     pos               = XYVector.add(player[:pos], eye_offset[player[:attack][:left_eye].to_s.to_sym][direction])
     [
         Bullet::spawn(pos, bullet_true_vel, {
-            bbox:  [pos[:x], pos[:y], 32, 32].anchor_rect(0.5, 0.5),
+            bbox:  [pos[:x] - 16, pos[:y] - 16, 16, 16],
             stats: {
                 damage: player[:stats][:total][:damage],
                 range:  player[:stats][:total][:range]
@@ -95,25 +95,25 @@ module Bullets
   # @param [Object] game
   def Bullets::spawn_new_parametric_bullets(game)
     mod = 40
-    return [] if $state.tick_count % mod != 0
+    return [] unless Kernel.tick_count % mod == 0 && game[:boss][:alive]
     so = {
         path: 'sprites/bullets/parametric.png',
-        r:    ($state.tick_count % (2*mod)) == 0 ? 150 : 1,
-        g:    ($state.tick_count % (2*mod)) == 0 ? 1 : 150,
+        r:    ($state.tick_count % (2 * mod)) == 0 ? 150 : 1,
+        g:    ($state.tick_count % (2 * mod)) == 0 ? 1 : 150,
         b:    1
     }
     (1..6).map do |i|
       ParametricBullet::spawn(
           :radial_spin_out,
-          {x: 640, y: 540},
+          {x: game[:boss][:x], y: game[:boss][:y]},
           32,
           900,
           {
               n:            i,
               max_n:        6,
-              turns:        2 * ($state.tick_count % (2*mod) == 0 ? 0.5 : -0.5),
+              turns:        2 * ($state.tick_count % (2 * mod) == 0 ? 0.5 : -0.5),
               dist:         1800,
-              offset_theta: 0.1 * Math::PI * $state.tick_count * ($state.tick_count % (2*mod) == 0 ? 1 : -1) / 30
+              offset_theta: 0.1 * Math::PI * $state.tick_count * ($state.tick_count % (2 * mod) == 0 ? 1 : -1) / 30
           },
           16,
           so

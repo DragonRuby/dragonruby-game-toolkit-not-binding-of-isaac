@@ -48,7 +48,8 @@ module Bullet
   # @param [Hash] game
   def Bullet::despawn?(bullet, game)
     out = (bullet[:age] > bullet[:attrs][:stats][:range]) || # Range despawn
-        !bullet[:pos][:x].between?(-50, 1330) || !bullet[:pos][:y].between?(-50, 770) # Offscreen despawn
+        !bullet[:pos][:x].between?(-50, 1330) || !bullet[:pos][:y].between?(-50, 770) || # Offscreen despawn
+        (game[:boss][:alive] && bullet[:attrs][:bbox].intersect_rect?(game[:boss][:bbox]))
     out
     #TODO: collision
   end

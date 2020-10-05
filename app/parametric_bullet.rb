@@ -20,29 +20,50 @@ module ParametricBullet
         function: function,
         offset_x: pos[:x],
         offset_y: pos[:y],
+        pos: [pos[:x], pos[:y]],
         age: initial_age,
         range: range,
         func_params: func_params,
-        sprite: ParametricBulletSprite.new(sprite_opts, radius)
+        sprite: ParametricBulletSprite.new(sprite_opts, radius),
+        bbox: [pos[:x]-Math.sqrt(2.0)*radius/2,pos[:y]-Math.sqrt(2.0)*radius/2,Math.sqrt(2.0)*radius,Math.sqrt(2.0)*radius]
     }
   end
 
   # @param [Hash] pbullet
   def ParametricBullet::tick_diff(pbullet)
+    pos = ParametricBullet::FUNCTIONS[pbullet[:function]].call(pbullet[:age], pbullet[:range], pbullet[:offset_x], pbullet[:offset_y], pbullet[:func_params])
+    old_bbox = pbullet[:bbox]
     {
-        age: pbullet[:age] + 1
+        age: pbullet[:age] + 1,
+        pos: pos,
+        bbox: [pos.x-(old_bbox.w/2),pos.y-(old_bbox.h/2),old_bbox.w,old_bbox.h]
     }
   end
 
   # @param [Hash] pbullet
   def ParametricBullet::pos(pbullet)
-    ParametricBullet::FUNCTIONS[pbullet[:function]].call(pbullet[:age], pbullet[:range], pbullet[:offset_x], pbullet[:offset_y], pbullet[:func_params])
+    pbullet[:pos]
   end
 
   # @param [Hash] pbullet
   def ParametricBullet::renderables(pbullet)
     return [] unless ParametricBullet::renderable?(pbullet)
-    pbullet[:sprite].update(pbullet)
+    bbox = {
+        x:                pbullet[:bbox][0],
+        y:                pbullet[:bbox][1],
+        w:                pbullet[:bbox][2],
+        h:                pbullet[:bbox][3],
+        r:                0,
+        g:                255,
+        b:                0,
+        a:                255,
+        primitive_marker: :border
+    }
+    out = [
+        pbullet[:sprite].update(pbullet)
+    ]
+    out.push bbox if $DEBUG
+    out
   end
   # @param [Hash] pbullet
   def ParametricBullet::renderable?(pbullet)
@@ -53,7 +74,8 @@ module ParametricBullet
   # @param [Hash] pbullet
   # @param [Hash] game
   def ParametricBullet::despawn?(pbullet, game)
-    (pbullet[:age] > pbullet[:range]) # Range despawn
+    (pbullet[:age] > pbullet[:range]) || # Range despawn
+        (true && pbullet[:bbox].intersect_rect?(game[:player][:attrs][:physics][:bbbox]))
 
   end
 end

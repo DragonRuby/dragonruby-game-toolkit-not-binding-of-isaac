@@ -11,6 +11,7 @@ require 'app/bullet.rb'
 require 'app/parametric_bullet.rb'
 require 'app/dungeon_master.rb'
 require 'app/controller.rb'
+require 'app/boss.rb'
 require 'app/upgrade.rb'
 
 $moving_avg = [16666] * 120
@@ -19,8 +20,8 @@ $last_time  = Time.now.usec
 
 # @param [GTK::Args] args
 def tick(args)
-  $trace_service.reset_tick
-  $trace_service.mark('tick')
+  #$trace_service.reset_tick
+  #$trace_service.mark('tick')
   t                      = Time.now.usec
   dt                     = t - $last_time
   dt                     = $moving_avg[$last_idx] if dt < 0
@@ -29,8 +30,8 @@ def tick(args)
   $last_time             = t
   args.state.tps         = ($moving_avg.length * 1000000) / $moving_avg.reduce(:plus)
   Game::tick args
-  $trace_service.mark('tock')
-  $trace_service.finish
+  #$trace_service.mark('tock')
+  #$trace_service.finish
 end
 
 def perf_test_soy

@@ -5,6 +5,7 @@ module Game
         bullets: Bullets::initial_state,
         intent:  Controller::initial_state,
         keymap:  Controller::keymap,
+        boss:    Boss::initial_state
     }
   end
 
@@ -14,6 +15,7 @@ module Game
     [
         Player::renderables(game[:player]),
         Bullets::renderables(game[:bullets]),
+        Boss::renderables(game[:boss]),
         {x: 10, y: 120, text: "FPS : #{$gtk.current_framerate.to_s.to_i}", r: 255, g: 0, b:0},
         {x: 10, y: 90, text: "TPS : #{$state.tps.round}", r: 255, g: 0, b:0},
         {x: 10, y: 60, text: "Bullet Count : #{game[:bullets][:player_bullets].length + game[:bullets][:parametric_bullets].length}", r: 255, g: 0, b:0},
@@ -28,7 +30,8 @@ module Game
         player:  Player::tick_diff(game),
         bullets: Bullets::tick_diff(game),
         # keymap:  game[:keymap], #TODO: Allow player to rebind controls?
-        intent: Controller::get_player_intent(raw_input, game)
+        intent: Controller::get_player_intent(raw_input, game),
+        boss: Boss::tick_diff(game)
     }
   end
 
@@ -37,8 +40,14 @@ module Game
     args.state.game ||= Game::initial_state
     # @type Hash
     prev_state      = args.state.game
-
+    if Player::get_damaging_bullets(prev_state) != []
+      args.state.game = Game::initial_state
+      prev_state      = args.state.game
+      $gtk.reset
+      return
+    end
     args.outputs.background_color = [128, 128, 128]
+    args
     args.outputs.primitives << Game::renderables(prev_state)
     args.outputs.debug << args.gtk.framerate_diagnostics_primitives
     diff = Game::tick_diff(prev_state, args.inputs)

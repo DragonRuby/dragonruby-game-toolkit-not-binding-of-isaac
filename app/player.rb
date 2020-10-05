@@ -42,7 +42,8 @@ module Player
                 base_accel:           0.35,
                 base_friction:        0.85,
                 base_bullet_momentum: 0.66,
-                bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0)
+                bbox:                 [640, 360, 64, 88].anchor_rect(0.5, 0),
+                bbbox:                [640, 360, 64, 88].anchor_rect(0.5, 0),
             }
         },
         stats:    {
@@ -94,9 +95,22 @@ module Player
         a:                255,
         primitive_marker: :border
     }
+    bbbox = {
+        x:                player[:attrs][:physics][:bbbox][0],
+        y:                player[:attrs][:physics][:bbbox][1],
+        w:                player[:attrs][:physics][:bbbox][2],
+        h:                player[:attrs][:physics][:bbbox][3],
+        r:                255,
+        g:                0,
+        b:                0,
+        a:                255,
+        primitive_marker: :border
+    }
     out  = []
-    out.push bbox if $DEBUG
     out.append(player[:facing].map { |part, direction| Player::part_sprite(player, part, direction) })
+    out.push bbox if $DEBUG
+    out.push bbbox if $DEBUG
+    out
   end
 
   # @param [Hash] player
@@ -112,6 +126,12 @@ module Player
                           pos[:y],
                           player[:attrs][:physics][:bbox][2],
                           player[:attrs][:physics][:bbox][3]
+                      ].anchor_rect(0.5, 0.05),
+                bbbox: [
+                          pos[:x],
+                          pos[:y]+player[:attrs][:physics][:bbox][3]*0.46,
+                          player[:attrs][:physics][:bbox][2]*0.75,
+                          player[:attrs][:physics][:bbox][3]*0.33
                       ].anchor_rect(0.5, 0.05)
             }
         }
@@ -164,7 +184,7 @@ module Player
 
   # @param [Hash] player
   # @param [Hash{Symbol=>Hash}] player_intent
-  # # @return [Hash] deep-mergeable sub-hash of player with updated values related to attack data
+  # @return [Hash] deep-mergeable sub-hash of player with updated values related to attack data
   def Player::update_attack(player, player_intent)
     out = {}
     if player[:attack][:cooldown] <= 1 && (player_intent[:shoot][:vertical] || player_intent[:shoot][:horizontal])
@@ -229,5 +249,14 @@ module Player
             }
         }
     }
+  end
+
+  # Get an array of all the parametric bullets currently hitting the player
+  def Player::get_damaging_bullets(game)
+    bullets = game[:bullets][:parametric_bullets].find_all { |b| b[:bbox].intersect_rect?(game[:player][:attrs][:physics][:bbbox]) }
+    if bullets != []
+      puts bullets
+    end
+    return bullets
   end
 end
